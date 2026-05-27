@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --bg-base: #020408;
+  --bg-surface: #080d14;
+  --bg-card: #0c1420;
+  --bg-elevated: #111926;
+  --amber: #c8973a;
+  --amber-dim: #8a6425;
+  --amber-glow: rgba(200, 151, 58, 0.15);
+  --text-primary: #e8e4dc;
+  --text-muted: #5a6272;
+  --text-dim: #2e3540;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --blue: #3b82f6;
+  --border: rgba(200, 151, 58, 0.12);
+  --border-hover: rgba(200, 151, 58, 0.3);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+.font-mono { font-family: 'Space Mono', monospace; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 2px; }
+
+.glow-amber { box-shadow: 0 0 20px var(--amber-glow), 0 0 60px rgba(200,151,58,0.05); }
+.glow-amber-text { text-shadow: 0 0 20px rgba(200,151,58,0.6); }
+
+@keyframes pulse-amber {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--amber); }
+  50% { opacity: 0.5; box-shadow: 0 0 12px var(--amber); }
+}
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+  50% { opacity: 0.5; box-shadow: 0 0 12px var(--green); }
+}
+.pulse-dot-amber { animation: pulse-amber 2s ease-in-out infinite; }
+.pulse-dot-green { animation: pulse-green 2s ease-in-out infinite; }
+
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes slide-in {
+  from { transform: translateX(-8px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.activity-entry { animation: slide-in 0.3s ease-out; }
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(200,151,58,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,151,58,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

@@ -6,6 +6,8 @@ import type {
   CostEntry,
   CompletedBuild,
   ActiveBuild,
+  ClientPortal,
+  AssetEntry,
 } from "@/types/models";
 
 export const AGENTS: Agent[] = [
@@ -79,42 +81,63 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   {
     n: 2,
     label: "Brand Profile",
-    sub: "Design system extraction",
+    sub: "design-system.json",
     status: "pending",
     agents: ["scout", "brand-guardian"],
   },
   {
     n: 3,
     label: "Creative Brief",
-    sub: "⚡ Decision gate",
+    sub: "3 concept paths",
     status: "pending",
     agents: ["visual-storyteller", "image-prompt-engineer"],
   },
   {
     n: 4,
-    label: "Asset Generation",
-    sub: "Nano Banana Pro + Seedance",
+    label: "Photo Enhancement",
+    sub: "GPT Image 2",
     status: "pending",
     agents: ["image-prompt-engineer"],
   },
   {
     n: 5,
+    label: "Logo Processing",
+    sub: "Background removal",
+    status: "pending",
+    agents: ["image-prompt-engineer"],
+  },
+  {
+    n: 6,
+    label: "Asset Generation",
+    sub: "Nano Banana + Seedance",
+    status: "pending",
+    agents: ["image-prompt-engineer"],
+  },
+  {
+    n: 7,
     label: "Build",
-    sub: "Frontend + Modules",
+    sub: "Modules + Motion + Cursor Magic",
     status: "pending",
     agents: ["builder", "content-creator"],
   },
   {
-    n: 6,
+    n: 8,
     label: "QA",
-    sub: "Reality Checker — defaults NEEDS WORK",
+    sub: "Impeccable + Mobile",
     status: "pending",
     agents: ["reality-checker"],
   },
   {
-    n: 7,
+    n: 9,
+    label: "Social",
+    sub: "Instagram / TikTok",
+    status: "pending",
+    agents: ["content-creator"],
+  },
+  {
+    n: 10,
     label: "Deploy",
-    sub: "GitHub + Vercel",
+    sub: "Vercel or Netlify",
     status: "pending",
     agents: ["deployer"],
   },
@@ -177,6 +200,31 @@ export const PROSPECTS: Prospect[] = [
     estimatedRevenue: "$300K–$800K/yr",
     recommendedTier: "$7.5K–$12K",
     notes: "4.8★ 310 reviews buried. Wix template. Domain split killing SEO.",
+    revenuePotential: "$9,500",
+  },
+  {
+    id: "p2",
+    name: "Riverside Auto Detail",
+    url: "riversideautodetail.com",
+    score: 3,
+    industry: "Auto Detailing",
+    status: "found",
+    estimatedRevenue: "$150K–$400K/yr",
+    recommendedTier: "$3K–$6K",
+    notes: "Godaddy website builder. No before/after gallery. No booking CTA.",
+    revenuePotential: "$4,500",
+  },
+  {
+    id: "p3",
+    name: "Summit Roofing Co.",
+    url: "summitroofingco.com",
+    score: 2,
+    industry: "Roofing & Exterior",
+    status: "found",
+    estimatedRevenue: "$500K–$2M/yr",
+    recommendedTier: "$8K–$15K",
+    notes: "Flash-based nav. No mobile. No reviews surfaced. Zero conversion.",
+    revenuePotential: "$11,000",
   },
 ];
 
@@ -199,3 +247,50 @@ export const ACTIVE_BUILD: ActiveBuild = {
 };
 
 export const SESSION_START_COST = 0.0169;
+
+export const CLIENTS: ClientPortal[] = [
+  {
+    id: "c1",
+    name: "Memphis Barbeque Supply",
+    businessType: "Specialty BBQ Retail",
+    liveUrl: "memphisbbqsupply.com",
+    pendingRequests: 0,
+    lastUpdated: "Build in progress",
+    retainerActive: false,
+    nextBillingDate: "—",
+    monthlyRetainerAmount: 0,
+    requestHistory: [],
+  },
+];
+
+export const ASSET_LOG: AssetEntry[] = [
+  {
+    id: "asset-1",
+    projectId: "memphis-bbq",
+    projectName: "Memphis BBQ Supply",
+    type: "image",
+    tool: "nano-banana",
+    description: "Hero section — pit BBQ smoke rising, cinematic angle",
+    cost: 0.12,
+  },
+  {
+    id: "asset-2",
+    projectId: "memphis-bbq",
+    projectName: "Memphis BBQ Supply",
+    type: "video",
+    tool: "seedance",
+    description: "Smoke rising from pit — 15s ambient loop",
+    cost: 0.45,
+    duration: "15s",
+    size: "4.2MB",
+  },
+  {
+    id: "asset-3",
+    projectId: "memphis-bbq",
+    projectName: "Memphis BBQ Supply",
+    type: "edit",
+    tool: "gpt-image-2",
+    description: "Product photo enhancement — brisket platter",
+    cost: 0.08,
+  },
+];

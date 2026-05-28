@@ -21,7 +21,7 @@ export default function Pipeline() {
       <div>
         <div className="font-display text-3xl" style={{ color: "var(--amber)" }}>PIPELINE</div>
         <div className="font-mono text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-          7-STAGE AUTONOMOUS BUILD PIPELINE — MEMPHIS BBQ SUPPLY
+          10-STAGE AUTONOMOUS BUILD PIPELINE — MEMPHIS BBQ SUPPLY
         </div>
       </div>
 

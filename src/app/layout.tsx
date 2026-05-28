@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { CommandBar } from "@/components/CommandBar";
 
 export const metadata: Metadata = {
   title: "Stick Man Cinematic Agency — Mission Control",
@@ -15,6 +16,7 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="h-full flex flex-col" style={{ background: "var(--bg-base)" }}>
         <TopBar />
+        <CommandBar />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
           <main className="flex-1 overflow-y-auto grid-bg">

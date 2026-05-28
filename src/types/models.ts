@@ -6,7 +6,7 @@ export interface Agent {
   role: string;
   status: AgentStatus;
   currentAction: string;
-  progress: number; // 0-100
+  progress: number;
   sessionCost: number;
 }
 
@@ -32,18 +32,34 @@ export interface ActivityEntry {
   cost?: number;
 }
 
-export type ProspectStatus = "queued" | "auditing" | "demo_ready" | "outreach_sent" | "won" | "lost";
+export type ProspectStatus =
+  | "found"
+  | "queued"
+  | "auditing"
+  | "demo_built"
+  | "demo_ready"
+  | "pitch_sent"
+  | "outreach_sent"
+  | "opened"
+  | "replied"
+  | "converted"
+  | "won"
+  | "lost";
 
 export interface Prospect {
   id: string;
   name: string;
   url: string;
-  score: number; // 1-10
+  score: number;
   industry: string;
   status: ProspectStatus;
   estimatedRevenue: string;
   recommendedTier: string;
   notes: string;
+  demoUrl?: string;
+  outreachSentAt?: string;
+  emailOpenedAt?: string;
+  revenuePotential?: string;
 }
 
 export interface CostEntry {
@@ -57,7 +73,7 @@ export interface CompletedBuild {
   id: string;
   name: string;
   client: string;
-  type: "renovation" | "new_build" | "outreach_demo";
+  type: "renovation" | "new_build" | "outreach_demo" | "premium" | "ugc_campaign";
   industry: string;
   priceCharged: number;
   aiCost: number;
@@ -68,6 +84,9 @@ export interface CompletedBuild {
   githubUrl: string;
   deployedAt: string;
   qaScore: number;
+  beforeScreenshot?: string;
+  afterScreenshot?: string;
+  deployPlatform?: "vercel" | "netlify";
 }
 
 export interface ActiveBuild {
@@ -78,4 +97,29 @@ export interface ActiveBuild {
   startedAt: Date;
   estimatedCompletion: string;
   sessionCost: number;
+}
+
+export interface ClientPortal {
+  id: string;
+  name: string;
+  businessType: string;
+  liveUrl: string;
+  pendingRequests: number;
+  lastUpdated: string;
+  retainerActive: boolean;
+  nextBillingDate: string;
+  monthlyRetainerAmount: number;
+  requestHistory: { date: string; request: string; status: "pending" | "done" }[];
+}
+
+export interface AssetEntry {
+  id: string;
+  projectId: string;
+  projectName: string;
+  type: "image" | "video" | "edit";
+  tool: "nano-banana" | "seedance" | "gpt-image-2" | "higgsfield";
+  description: string;
+  cost: number;
+  duration?: string;
+  size?: string;
 }

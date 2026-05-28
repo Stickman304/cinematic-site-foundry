@@ -15,17 +15,19 @@ const STATUS_BG: Record<Agent["status"], string> = {
   complete: "rgba(46,204,113,0.1)",
 };
 
-export function AgentCard({ agent }: { agent: Agent }) {
+export function AgentCard({ agent, onClick }: { agent: Agent; onClick?: () => void }) {
   const color = STATUS_COLORS[agent.status];
   const isActive = agent.status === "active";
 
   return (
     <div
+      onClick={onClick}
       className="rounded-lg p-4 border flex flex-col gap-3 transition-all"
       style={{
         background: "var(--bg-card)",
         borderColor: isActive ? "var(--border-hover)" : "var(--border)",
         boxShadow: isActive ? "0 0 20px rgba(200,151,58,0.08)" : "none",
+        cursor: onClick ? "pointer" : "default",
       }}
     >
       {/* Header */}

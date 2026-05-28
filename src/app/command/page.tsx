@@ -2,10 +2,60 @@
 import { useState } from "react";
 
 const BUILD_TYPES = [
-  { id: "audit", label: "AUDIT", desc: "Full site audit only" },
-  { id: "renovate", label: "RENOVATE", desc: "Full renovation pipeline" },
-  { id: "new_build", label: "NEW BUILD", desc: "From brief to deployed" },
-  { id: "outreach_demo", label: "OUTREACH DEMO", desc: "15-min pitch demo" },
+  {
+    id: "audit",
+    label: "AUDIT",
+    desc: "Full site audit only",
+    icon: "◈",
+    stages: ["Audit", "Brand Profile"],
+    avgCost: "$0.02",
+    avgTime: "8 min",
+  },
+  {
+    id: "renovate",
+    label: "RENOVATE",
+    icon: "◻",
+    desc: "Full renovation pipeline",
+    stages: ["Audit", "Brand Profile", "Creative Brief", "Photo Enhancement", "Logo Processing", "Asset Gen", "Build", "QA", "Deploy"],
+    avgCost: "$1.50",
+    avgTime: "45 min",
+  },
+  {
+    id: "new_build",
+    label: "NEW BUILD",
+    icon: "▶",
+    desc: "From brief to deployed",
+    stages: ["Audit", "Brand Profile", "Creative Brief", "Asset Gen", "Build", "QA", "Deploy"],
+    avgCost: "$3.00",
+    avgTime: "90 min",
+  },
+  {
+    id: "outreach_demo",
+    label: "OUTREACH DEMO",
+    icon: "◎",
+    desc: "15-min pitch demo",
+    stages: ["Audit", "Brand Profile", "Build (Light)", "QA"],
+    avgCost: "$0.50",
+    avgTime: "15 min",
+  },
+  {
+    id: "premium",
+    label: "PREMIUM",
+    icon: "◇",
+    desc: "Full cinematic build",
+    stages: ["All 10 stages + social content"],
+    avgCost: "$8.00",
+    avgTime: "3 hr",
+  },
+  {
+    id: "ugc_campaign",
+    label: "UGC CAMPAIGN",
+    icon: "◑",
+    desc: "Social-first content pack",
+    stages: ["Brand Profile", "Asset Gen", "Social", "Deploy"],
+    avgCost: "$5.00",
+    avgTime: "60 min",
+  },
 ];
 
 const BUDGET_TIERS = [
@@ -23,17 +73,13 @@ const QUICK_ACTIONS = [
   { label: "QA ALL", sub: "Impeccable on all deployed sites", color: "#8b5cf6" },
 ];
 
-const ACTIVE_SKILLS = [
-  "Impeccable", "UI/UX Pro Max", "Motion.dev", "GSAP",
-  "Nano Banana Pro", "Seedance 2.0", "Kling 3.0", "Wiggle",
-  "Firecrawl", "21st.dev MCP", "digital-marketing-pro", "cinematic-modules",
-];
-
 export default function Command() {
   const [url, setUrl] = useState("");
   const [buildType, setBuildType] = useState("audit");
   const [budget, setBudget] = useState("standard");
   const [fired, setFired] = useState(false);
+
+  const selectedBuild = BUILD_TYPES.find((b) => b.id === buildType);
 
   function handleFire() {
     if (!url) return;
@@ -42,7 +88,7 @@ export default function Command() {
   }
 
   return (
-    <div className="p-6 flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <div className="p-6 flex flex-col gap-6 max-w-5xl mx-auto w-full">
       <div>
         <div className="font-display text-3xl" style={{ color: "var(--amber)" }}>COMMAND CENTER</div>
         <div className="font-mono text-xs mt-1" style={{ color: "var(--text-muted)" }}>
@@ -50,7 +96,7 @@ export default function Command() {
         </div>
       </div>
 
-      {/* URL + Build type */}
+      {/* URL + fire */}
       <div className="rounded-lg border p-5 flex flex-col gap-4" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
         <div>
           <label className="font-mono text-xs block mb-2" style={{ color: "var(--text-muted)" }}>TARGET URL</label>
@@ -66,32 +112,11 @@ export default function Command() {
               border: "1px solid var(--border)",
               caretColor: "var(--amber)",
             }}
+            onKeyDown={(e) => e.key === "Enter" && handleFire()}
           />
         </div>
 
-        {/* Build type */}
-        <div>
-          <label className="font-mono text-xs block mb-2" style={{ color: "var(--text-muted)" }}>BUILD TYPE</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {BUILD_TYPES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setBuildType(t.id)}
-                className="p-3 rounded border text-left transition-all"
-                style={{
-                  background: buildType === t.id ? "var(--amber-glow)" : "var(--bg-elevated)",
-                  borderColor: buildType === t.id ? "var(--amber)" : "var(--border)",
-                  color: buildType === t.id ? "var(--amber)" : "var(--text-muted)",
-                }}
-              >
-                <div className="font-display text-sm">{t.label}</div>
-                <div className="font-mono text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{t.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Budget */}
+        {/* Budget tier */}
         <div>
           <label className="font-mono text-xs block mb-2" style={{ color: "var(--text-muted)" }}>BUDGET TIER (MAX AI COST)</label>
           <div className="flex gap-2 flex-wrap">
@@ -112,7 +137,6 @@ export default function Command() {
           </div>
         </div>
 
-        {/* FIRE button */}
         <button
           onClick={handleFire}
           disabled={!url}
@@ -128,6 +152,90 @@ export default function Command() {
         </button>
       </div>
 
+      {/* Build type workflow cards */}
+      <div>
+        <div className="font-display text-lg mb-3" style={{ color: "var(--amber)" }}>BUILD TYPE — SELECT WORKFLOW</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {BUILD_TYPES.map((t) => {
+            const active = buildType === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setBuildType(t.id)}
+                className="rounded-lg border p-4 text-left flex flex-col gap-2 transition-all"
+                style={{
+                  background: active ? "var(--amber-glow)" : "var(--bg-card)",
+                  borderColor: active ? "var(--amber)" : "var(--border)",
+                  boxShadow: active ? "0 0 20px rgba(200,151,58,0.12)" : "none",
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: active ? "var(--amber)" : "var(--text-muted)" }}>{t.icon}</span>
+                    <span className="font-display text-sm" style={{ color: active ? "var(--amber)" : "var(--text-primary)" }}>
+                      {t.label}
+                    </span>
+                  </div>
+                  {active && (
+                    <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ background: "var(--amber)", color: "#000" }}>
+                      SELECTED
+                    </span>
+                  )}
+                </div>
+                <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>{t.desc}</div>
+                <div className="flex gap-3 mt-1">
+                  <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>≈{t.avgCost} AI cost</span>
+                  <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>~{t.avgTime}</span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {t.stages.slice(0, 4).map((s) => (
+                    <span
+                      key={s}
+                      className="font-mono px-1.5 py-0.5 rounded"
+                      style={{ fontSize: 9, background: "var(--bg-base)", color: "var(--text-dim)" }}
+                    >
+                      {s}
+                    </span>
+                  ))}
+                  {t.stages.length > 4 && (
+                    <span className="font-mono px-1.5 py-0.5 rounded" style={{ fontSize: 9, background: "var(--bg-base)", color: "var(--text-dim)" }}>
+                      +{t.stages.length - 4} more
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Workflow preview for selected type */}
+      {selectedBuild && (
+        <div
+          className="rounded-lg border p-5"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-hover)" }}
+        >
+          <div className="font-display text-base mb-3" style={{ color: "var(--amber)" }}>
+            {selectedBuild.label} — STAGE SEQUENCE
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {selectedBuild.stages.map((s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                <span
+                  className="font-mono text-xs px-3 py-1.5 rounded"
+                  style={{ background: "var(--bg-base)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                >
+                  {s}
+                </span>
+                {i < selectedBuild.stages.length - 1 && (
+                  <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>→</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick actions */}
       <div>
         <div className="font-display text-lg mb-3" style={{ color: "var(--amber)" }}>QUICK ACTIONS</div>
@@ -141,22 +249,6 @@ export default function Command() {
               <div className="font-display text-base" style={{ color: a.color }}>{a.label}</div>
               <div className="font-mono text-xs mt-1" style={{ color: "var(--text-muted)" }}>{a.sub}</div>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Active skills */}
-      <div>
-        <div className="font-display text-lg mb-3" style={{ color: "var(--amber)" }}>ACTIVE SKILL STACK</div>
-        <div className="flex flex-wrap gap-2">
-          {ACTIVE_SKILLS.map((s) => (
-            <span
-              key={s}
-              className="font-mono text-xs px-3 py-1.5 rounded border"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--text-muted)" }}
-            >
-              ✓ {s}
-            </span>
           ))}
         </div>
       </div>

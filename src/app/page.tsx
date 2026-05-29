@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { AGENTS, ACTIVE_BUILD } from "@/lib/data";
 import type { Agent } from "@/types/models";
 import { AgentCard } from "@/components/AgentCard";
@@ -30,6 +31,7 @@ const TIERS: Tier[] = [
 // ── Build Launcher ────────────────────────────────────────────────────────────
 
 function BuildLauncher() {
+  const router = useRouter();
   const [selectedTier, setSelectedTier] = useState<TierId | null>(null);
   const [url, setUrl] = useState("");
   const [clientName, setClientName] = useState("");
@@ -37,73 +39,66 @@ function BuildLauncher() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [logoFiles, setLogoFiles] = useState<File[]>([]);
   const [urlError, setUrlError] = useState("");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [launchStatus, setLaunchStatus] = useState<"idle" | "uploading" | "launching" | "error">("idle");
+  const [launchError, setLaunchError] = useState("");
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) {
-      setPhotoFiles(Array.from(e.target.files));
-    }
+    if (e.target.files) setPhotoFiles(Array.from(e.target.files));
   }
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) {
-      setLogoFiles(Array.from(e.target.files));
-    }
+    if (e.target.files) setLogoFiles(Array.from(e.target.files));
   }
 
-  function buildPrompt(): string {
-    const tier = TIERS.find((t) => t.id === selectedTier);
-    const tierLabel = tier ? tier.label : "UNKNOWN";
-    const photoNames = photoFiles.length > 0
-      ? photoFiles.map((f) => f.name).join(", ")
-      : "None uploaded";
-
-    return `Read CLAUDE.md v6.0 and MASTER-REFERENCE.md.
-CLIENT URL: ${url}
-CLIENT NAME: ${clientName.trim() || "Not provided"}
-TIER: ${tierLabel}
-PHOTOS: ${photoNames}
-NOTES: ${notes.trim() || "None"}
-
-Create PROJECT-BRIEF.md for this client from the URL and inputs above.
-Execute ${tierLabel} pipeline from CLAUDE.md exactly as specified.
-Two builds required — produce both creative directions before writing any code.
-Report back with both directions and await human approval before building.
-All 6 foundation steps must fire before any code is written.
-Follow all behavioral rules, budget stops, and quality gates in CLAUDE.md.`;
-  }
-
-  function handleLaunch() {
-    if (!url.trim()) {
-      setUrlError("Client URL is required");
-      return;
-    }
+  async function handleLaunch() {
+    if (!url.trim()) { setUrlError("Client URL is required"); return; }
+    if (!selectedTier) return;
     setUrlError("");
+    setLaunchError("");
+    const tier = TIERS.find((t) => t.id === selectedTier)!;
 
-    const prompt = buildPrompt();
+    try {
+      // Step 1: upload photos to Supabase Storage
+      let photoUrls: string[] = [];
+      const allFiles = [...photoFiles, ...logoFiles];
+      if (allFiles.length > 0) {
+        setLaunchStatus("uploading");
+        const buildId = crypto.randomUUID();
+        const fd = new FormData();
+        fd.append("buildId", buildId);
+        allFiles.forEach((f) => fd.append("files", f));
+        const upRes = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!upRes.ok) throw new Error("Photo upload failed");
+        const { urls } = await upRes.json();
+        photoUrls = urls;
+      }
 
-    navigator.clipboard.writeText(prompt).then(() => {
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 3000);
-    }).catch(() => {
-      // Fallback: create a temporary textarea
-      const ta = document.createElement("textarea");
-      ta.value = prompt;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 3000);
-    });
+      // Step 2: fire the pipeline
+      setLaunchStatus("launching");
+      const body = {
+        tier: tier.label,
+        url: url.trim(),
+        clientName: clientName.trim() || undefined,
+        notes: notes.trim() || undefined,
+        photoUrls,
+      };
+      const res = await fetch("/api/launch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error("Pipeline failed to start");
+      const buildId = res.headers.get("X-Build-ID") ?? "";
+
+      // Step 3: navigate to activity to watch live
+      router.push(`/activity?buildId=${buildId}`);
+    } catch (err) {
+      setLaunchStatus("error");
+      setLaunchError((err as Error).message);
+    }
   }
 
   const activeTier = TIERS.find((t) => t.id === selectedTier);
+  const isBusy = launchStatus === "uploading" || launchStatus === "launching";
 
   return (
     <div
@@ -337,27 +332,29 @@ Follow all behavioral rules, budget stops, and quality gates in CLAUDE.md.`;
           {/* Launch button */}
           <button
             onClick={handleLaunch}
+            disabled={isBusy}
             className="w-full rounded font-display text-2xl tracking-wide transition-all"
             style={{
               minHeight: "56px",
-              background: "var(--amber)",
-              color: "#030407",
+              background: isBusy ? "var(--bg-elevated)" : "var(--amber)",
+              color: isBusy ? "var(--text-muted)" : "#030407",
               border: "none",
-              cursor: "pointer",
+              cursor: isBusy ? "not-allowed" : "pointer",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+            onMouseEnter={(e) => { if (!isBusy) e.currentTarget.style.opacity = "0.9"; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
-            🎬 LAUNCH BUILD
+            {launchStatus === "uploading" && "⏫ UPLOADING ASSETS..."}
+            {launchStatus === "launching" && "⚡ PIPELINE FIRING..."}
+            {(launchStatus === "idle" || launchStatus === "error") && "🎬 LAUNCH BUILD"}
           </button>
 
-          {/* Copy confirmation */}
-          {copyStatus === "copied" && (
+          {launchStatus === "error" && (
             <div
               className="font-mono text-xs text-center py-2 rounded"
-              style={{ color: "var(--green)", background: "rgba(0,255,128,0.07)", border: "1px solid var(--green)" }}
+              style={{ color: "var(--red)", background: "rgba(231,76,60,0.07)", border: "1px solid var(--red)" }}
             >
-              ✓ Copied — paste into Claude Code to start the build
+              ⚠ {launchError || "Launch failed — check Anthropic API key and try again"}
             </div>
           )}
         </div>

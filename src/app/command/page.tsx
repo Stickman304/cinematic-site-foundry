@@ -1,6 +1,140 @@
 "use client";
 import { useState } from "react";
 
+function CollapsibleCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border overflow-hidden" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-5 py-3 flex items-center justify-between transition-all"
+        style={{ borderBottom: open ? "1px solid var(--border)" : "none" }}
+      >
+        <span className="font-display text-base" style={{ color: "var(--amber)" }}>{title}</span>
+        <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>{open ? "▲ COLLAPSE" : "▼ EXPAND"}</span>
+      </button>
+      {open && <div className="p-5">{children}</div>}
+    </div>
+  );
+}
+
+const DESIGN_STACK_TIERS = [
+  {
+    label: "EVERY BUILD (all tiers)",
+    items: [
+      "Google Stitch MCP + stitch-design-taste → DESIGN.md",
+      "google-labs-code/stitch-skills → Stitch → React",
+      "UI/UX Pro Max → 161 palettes · 57 fonts · 67 styles",
+      "Impeccable → 85+ required · anti-pattern enforcement",
+      "frontend-design (anthropics) → no AI slop",
+      "design-taste-frontend (Taste Skill v2) → anti-slop",
+      "cinematic-ui → film director workflow",
+      "RoboNuggets design-system → brand book PDF",
+      "awesome-design-md → DESIGN.md templates",
+      "digital-marketing-pro → copy quality gate B+",
+      "LottieFiles motion-design-skill → Step 5 principles",
+      "design-motion-principles → Step 6 motion audit",
+      "VOIDXAI/taste → 5-dimension quality judgment",
+      "21st.dev Magic MCP → /ui every component stage",
+      "MotionSites.ai → 65 hero section prompt recipes",
+    ],
+  },
+  {
+    label: "TIER 1 RENOVATION ADDS",
+    items: [
+      "Firecrawl website-design-clone",
+      "cinematic-modules (30 modules) #01 #07 #10 #16 #25",
+      "framer-motion-skill · motion-dev-skill",
+      "website-builder-setup · tweak",
+      "GPT Image 2 via Higgsfield (photos only)",
+    ],
+  },
+  {
+    label: "TIER 2 NEW BUILD ADDS",
+    items: [
+      "Reloom (zero-brand clients, browser step)",
+      "Nano Banana 2 → hero still",
+      "Kling 3.0 → ambient/transition video",
+      "OR Google Flow (Veo 3.1) → second video engine",
+      "Seedance 2.0 → 15s ambient loop",
+      "FFmpeg → compress + ping-pong WebM",
+      "claudedesignskills: GSAP · Locomotive · Lottie · Anime.js",
+    ],
+  },
+  {
+    label: "TIER 3 ADVANCED ADDS",
+    items: [
+      "Spline MCP → 3D hero objects (automated)",
+      "Three.js · React Three Fiber · Babylon.js",
+      "zyliu0/3d-frontend → scroll-driven 3D",
+      "GSAP scroll frames → video to 100+ frames",
+      "CMS → Sanity or Contentful",
+    ],
+  },
+  {
+    label: "PREMIUM ADDS",
+    items: [
+      "GStack CEO mode + Conductor (Garry Tan)",
+      "Three.js + R3F + Babylon.js combined",
+      "Multiple generation rounds",
+      "Full 3D world — no limitations",
+      "Reference: shader.se · airborne.studio · longshotfeatures.com",
+    ],
+  },
+];
+
+const ANIMATION_TIERS = [
+  { label: "TIER 1 — CSS + GSAP Modules Only", color: "#10b981", lines: ["No video generation", "Modules: #01 #07 #10 #16 #25", "Cost: ~$0.50 · Time: 30–45 min"] },
+  { label: "TIER 2 — Higgsfield + Google Flow Video Pipeline", color: "var(--amber)", lines: ["Nano Banana 2 + Kling 3.0 + Seedance 2.0", "OR Google Flow + Veo 3.1 (agent decides per brief)", "Modules add: #09 #13 #14 #20 #29", "Cost: ~$1.50–$3 · Time: 60–90 min"] },
+  { label: "TIER 3 — Full 3D Stack", color: "#8b5cf6", lines: ["Spline + Three.js + GSAP scroll frames", "Modules add: #03 #22 #24 #26 #28", "Cost: ~$5–$8 · Time: 3–4 hours"] },
+  { label: "PREMIUM — Event Level", color: "#ec4899", lines: ["Full 3D world · multiple generation rounds", "WebGPU via TSL where applicable", "All modules active", "Cost: ~$10–$15 · Time: 4–6 hours"] },
+  { label: "UGC CAMPAIGN", color: "var(--amber)", lines: ["20 videos: ~$180 · 50 videos: ~$450 · 100: ~$900", "Time: 2–3 hours"] },
+];
+
+const CINEMATIC_RULES = [
+  {
+    category: "CURSOR (every site)",
+    rules: [
+      "Tier 1: glow follows cursor (Module #10) — always",
+      "Tier 2: image trail (Module #13)",
+      "Tier 3+: magnetic cursor with spring physics",
+    ],
+  },
+  {
+    category: "SCROLL (every site)",
+    rules: [
+      "Tier 1: text reveals on enter (Module #01) — always",
+      "Tier 1: curtain reveals (Module #07) — always",
+      "Tier 2+: scroll-linked video playback",
+      "Tier 3+: scroll-driven 3D camera paths",
+    ],
+  },
+  {
+    category: "HERO (never static)",
+    rules: [
+      "Tier 1: CSS gradient or particle drift",
+      "Tier 2: Seedance 2.0 loop + scroll video OR Google Flow + Veo 3.1",
+      "Tier 3: GSAP scroll frames (100+ frames)",
+      "Premium: Three.js or R3F immersive world",
+    ],
+  },
+  {
+    category: "ALWAYS",
+    rules: [
+      "NAV: glassmorphism blur on scroll",
+      "CARDS: spotlight glow + 3D tilt on hover (Module #16 on every product grid)",
+      "MARQUEE: Module #25 between every section",
+    ],
+  },
+  {
+    category: "TWO BUILDS",
+    rules: [
+      "Every client gets two distinct creative directions",
+      "visual-storyteller produces both — human approves first",
+    ],
+  },
+];
+
 const BUILD_TYPES = [
   {
     id: "audit",
@@ -252,6 +386,66 @@ export default function Command() {
           ))}
         </div>
       </div>
+
+      {/* Addition C — Design Stack Reference Card */}
+      <CollapsibleCard title="ACTIVE DESIGN STACK PER TIER">
+        <div className="flex flex-col gap-4">
+          {DESIGN_STACK_TIERS.map((tier) => (
+            <div key={tier.label}>
+              <div className="font-mono text-xs font-bold mb-2" style={{ color: "var(--amber)" }}>{tier.label}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {tier.items.map((item) => (
+                  <span
+                    key={item}
+                    className="font-mono px-2 py-0.5 rounded"
+                    style={{ fontSize: 10, background: "var(--bg-base)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CollapsibleCard>
+
+      {/* Addition D — Animation Tier Guide */}
+      <CollapsibleCard title="ANIMATION STANDARD PER TIER">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {ANIMATION_TIERS.map((tier) => (
+            <div
+              key={tier.label}
+              className="rounded p-3 flex flex-col gap-1"
+              style={{ background: "var(--bg-base)", border: `1px solid ${tier.color}33` }}
+            >
+              <div className="font-display text-sm" style={{ color: tier.color }}>{tier.label}</div>
+              {tier.lines.map((line) => (
+                <div key={line} className="font-mono text-xs" style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </CollapsibleCard>
+
+      {/* Addition G — Cinematic Standard Reference Card */}
+      <CollapsibleCard title="CINEMATIC STANDARD — NON-NEGOTIABLE">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {CINEMATIC_RULES.map((section) => (
+            <div key={section.category}>
+              <div className="font-mono text-xs font-bold mb-2" style={{ color: "var(--amber)" }}>{section.category}</div>
+              <div className="flex flex-col gap-1">
+                {section.rules.map((rule) => (
+                  <div key={rule} className="font-mono text-xs" style={{ color: "var(--text-muted)", fontSize: 10 }}>
+                    · {rule}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CollapsibleCard>
     </div>
   );
 }

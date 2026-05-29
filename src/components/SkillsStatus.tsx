@@ -1,45 +1,57 @@
 "use client";
 
-const SKILLS = [
-  { name: "Impeccable", category: "QA", status: "active", version: "v2.0" },
-  { name: "Firecrawl", category: "Scrape", status: "active", version: "v1.18.3" },
-  { name: "GSAP", category: "Motion", status: "active", version: "v3.12" },
-  { name: "Motion.dev", category: "Animation", status: "active", version: "v11" },
-  { name: "Nano Banana 2", category: "Image Gen", status: "active", version: "latest" },
-  { name: "Seedance 2.0", category: "Video Gen", status: "active", version: "i2v" },
-  { name: "Kling 3.0", category: "Video Gen", status: "active", version: "pro" },
-  { name: "Higgsfield", category: "Style Transfer", status: "active", version: "MCP" },
-  { name: "GPT Image 2", category: "Image Edit", status: "active", version: "latest" },
-  { name: "21st.dev MCP", category: "UI/UX", status: "pending", version: "manual" },
-  { name: "Firecrawl MCP", category: "Data", status: "pending", version: "manual" },
-  { name: "Cinematic Modules", category: "Components", status: "active", version: "v1.0" },
-  { name: "Cursor Magic", category: "Interaction", status: "active", version: "built-in" },
-  { name: "UI/UX Pro Max", category: "Design", status: "active", version: "v2" },
-  { name: "OpenRouter", category: "LLM Fallback", status: "active", version: "live" },
-  { name: "Muapi", category: "Video Router", status: "active", version: "v2" },
+const ACTIVE_SKILLS = [
+  "Firecrawl MCP · 25+ skills",
+  "21st.dev Magic MCP",
+  "Higgsfield MCP (OAuth) — L1+L2+L3",
+  "Stitch MCP — stitch-design-taste + stitch-skills",
+  "Gmail MCP",
+  "Google Calendar MCP",
+  "Google Drive MCP",
+  "Ruflo MCP (3 tools)",
+  "ECC — harness + memory + orchestration",
+  "UI/UX Pro Max",
+  "Impeccable",
+  "frontend-design",
+  "cinematic-modules (30)",
+  "cinematic-ui (film director workflow)",
+  "design-taste-frontend (Taste Skill v2)",
+  "VOIDXAI/taste (5-dimension judgment)",
+  "LottieFiles/motion-design-skill",
+  "design-motion-principles",
+  "emilkowalski/skill (case-by-case)",
+  "claudedesignskills (23 skills)",
+  "framer-motion-skill",
+  "motion-dev-skill",
+  "website-builder-setup",
+  "tweak · personalise",
+  "design-system · awesome-design-md",
+  "digital-marketing-pro",
+  "caveman suite",
+  "calibrate · evolver · graphify",
+  "notebooklm-py",
+  "arcads-external-api",
+  "last30days-skill",
+  "vercel skills suite",
+  "gsd suite (80+ commands)",
+  "claude-gstack",
+  "MotionSites.ai (65 hero prompts)",
+  "RoboNuggets design-system",
 ];
 
-const CAT_COLORS: Record<string, string> = {
-  "QA":             "#10b981",
-  "Scrape":         "#3b82f6",
-  "Motion":         "#8b5cf6",
-  "Animation":      "#8b5cf6",
-  "Image Gen":      "var(--amber)",
-  "Video Gen":      "var(--amber)",
-  "Style Transfer": "#f59e0b",
-  "Image Edit":     "#f59e0b",
-  "UI/UX":          "#ec4899",
-  "Data":           "#3b82f6",
-  "Components":     "#10b981",
-  "Interaction":    "#06b6d4",
-  "Design":         "#ec4899",
-  "LLM Fallback":   "var(--text-muted)",
-  "Video Router":   "var(--amber)",
-};
+const NEEDS_CONFIG = [
+  { name: "Meta Ads MCP", note: "not yet installed" },
+  { name: "Telegram bots", note: "verify active: 227955526" },
+  { name: "n8n Scout workflow", note: "schedule Monday 6AM" },
+  { name: "n8n Prospector", note: "schedule weekly" },
+];
+
+const BROWSER_ONLY = [
+  { name: "Reloom", note: "reloom.com · Tier 2 zero-brand clients", href: "https://reloom.com" },
+  { name: "Google Flow", note: "labs.google/fx/tools/flow · Tier 2+ video", href: "https://labs.google/fx/tools/flow" },
+];
 
 export function SkillsStatus() {
-  const active = SKILLS.filter((s) => s.status === "active").length;
-
   return (
     <div
       className="rounded-lg border"
@@ -49,43 +61,84 @@ export function SkillsStatus() {
         <span className="font-display text-base" style={{ color: "var(--amber)" }}>
           SKILL STACK STATUS
         </span>
-        <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-          {active}/{SKILLS.length} ACTIVE
+        <span className="font-mono text-xs" style={{ color: "var(--green)" }}>
+          {ACTIVE_SKILLS.length} ACTIVE · {NEEDS_CONFIG.length} NEED CONFIG
         </span>
       </div>
-      <div className="p-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
-        {SKILLS.map((skill) => (
-          <div
-            key={skill.name}
-            className="rounded p-2 flex flex-col gap-1"
-            style={{
-              background: "var(--bg-base)",
-              border: `1px solid ${skill.status === "active" ? "var(--border)" : "transparent"}`,
-              opacity: skill.status === "pending" ? 0.45 : 1,
-            }}
-          >
-            <div
-              className="font-mono text-xs font-bold leading-tight"
-              style={{ color: skill.status === "active" ? "var(--text-primary)" : "var(--text-dim)" }}
-            >
-              {skill.name}
-            </div>
-            <div className="flex items-center justify-between">
-              <span
-                className="font-mono"
-                style={{ fontSize: 9, color: CAT_COLORS[skill.category] ?? "var(--text-muted)" }}
-              >
-                {skill.category}
-              </span>
-              <span
-                className="font-mono"
-                style={{ fontSize: 9, color: skill.status === "active" ? "var(--green)" : "var(--red)" }}
-              >
-                {skill.status === "active" ? "✓" : "⊘"}
-              </span>
-            </div>
+
+      <div className="p-4 flex flex-col gap-5">
+        {/* ACTIVE */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--green)" }} />
+            <span className="font-mono text-xs font-bold" style={{ color: "var(--green)" }}>ACTIVE</span>
           </div>
-        ))}
+          <div className="flex flex-wrap gap-1.5">
+            {ACTIVE_SKILLS.map((s) => (
+              <span
+                key={s}
+                className="font-mono px-2 py-0.5 rounded"
+                style={{ fontSize: 10, background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* NEEDS CONFIG */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
+            <span className="font-mono text-xs font-bold" style={{ color: "#f59e0b" }}>NEEDS CONFIG</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {NEEDS_CONFIG.map((s) => (
+              <span
+                key={s.name}
+                className="font-mono px-2 py-0.5 rounded"
+                style={{ fontSize: 10, background: "var(--bg-elevated)", color: "#f59e0b", border: "1px solid #f59e0b44" }}
+                title={s.note}
+              >
+                {s.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* BROWSER ONLY */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>🔗</span>
+            <span className="font-mono text-xs font-bold" style={{ color: "var(--text-muted)" }}>BROWSER ONLY</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {BROWSER_ONLY.map((s) => (
+              <a
+                key={s.name}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono px-2 py-0.5 rounded"
+                style={{ fontSize: 10, background: "var(--bg-elevated)", color: "var(--text-dim)", border: "1px solid var(--border)" }}
+                title={s.note}
+              >
+                {s.name} ↗
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* AGENTS */}
+        <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
+          <span className="font-mono text-xs font-bold" style={{ color: "var(--text-muted)" }}>AGENTS — 200+ installed</span>
+          <div className="font-mono text-xs mt-1" style={{ color: "var(--text-dim)", lineHeight: 1.8 }}>
+            ECC (harness + memory + orchestration) ·{" "}
+            NicholasSpisak/claude-code-subagents (primary roster) ·{" "}
+            trend-researcher (Scout) ·{" "}
+            prospector (client acquisition)
+          </div>
+        </div>
       </div>
     </div>
   );

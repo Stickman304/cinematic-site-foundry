@@ -16,7 +16,9 @@ const AGENT_ROSTER = [
   { id: "reality-checker", name: "reality-checker", tier: "ALL", task: "No build in QA queue", elapsed: "—", status: "idle" },
 ];
 
-const INITIAL_LOG = [
+type LogEntry = { ts: string; agent: string; action: string; cost?: string };
+
+const INITIAL_LOG: LogEntry[] = [
   { ts: "14:23:01", agent: "brand-guardian", action: "Locked brand palette #c8973a" },
   { ts: "14:23:04", agent: "cinematic-ui", action: "Director: Kubrick · decisions.md produced" },
   { ts: "14:23:09", agent: "frontend-developer", action: "Building hero section..." },
@@ -36,7 +38,7 @@ const STATUS_DOT: Record<string, { symbol: string; color: string; label: string 
 };
 
 export default function Activity() {
-  const [log, setLog] = useState(INITIAL_LOG);
+  const [log, setLog] = useState<LogEntry[]>(INITIAL_LOG);
   const [source, setSource] = useState<"Ruflo" | "Supabase backup">("Ruflo");
   const [tick, setTick] = useState(0);
 
@@ -71,7 +73,7 @@ export default function Activity() {
         <div>
           <div className="font-display text-3xl" style={{ color: "var(--amber)" }}>LIVE ACTIVITY — CREW STATUS</div>
           <div className="font-mono text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {source} primary · Supabase backup · 2s refresh
+            {source} primary · Supabase backup · 5s refresh
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -113,7 +115,7 @@ export default function Activity() {
         </div>
         <div>
           <div className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>MEMORY</div>
-          <div className="font-mono text-sm mt-0.5" style={{ color: "var(--green)" }}>ECC session hooks active</div>
+          <div className="font-mono text-sm mt-0.5" style={{ color: "var(--green)" }}>ECC · NanoClaw v2 · AgentShield active</div>
         </div>
         <div className="ml-auto">
           <div className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>SOURCE</div>
@@ -216,6 +218,11 @@ export default function Activity() {
               <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
                 {entry.action}
               </span>
+              {entry.cost && (
+                <span className="font-mono text-xs shrink-0" style={{ color: "var(--text-dim)" }}>
+                  · cost: {entry.cost}
+                </span>
+              )}
             </div>
           ))}
         </div>

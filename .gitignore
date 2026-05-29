@@ -1,3 +1,10 @@
 behavioral-log.jsonl
 cost-tracker.json
 .env
+
+.vercel
+node_modules/
+.next/
+.agents/
+graphify-out/
+*.node

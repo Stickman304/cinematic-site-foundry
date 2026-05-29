@@ -446,6 +446,66 @@ export default function Command() {
           ))}
         </div>
       </CollapsibleCard>
+
+      {/* Emil Kowalski — Animation Review */}
+      <CollapsibleCard title="EMIL KOWALSKI — ANIMATION REVIEW">
+        <div className="flex flex-col gap-4">
+          {/* Status badge row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="font-mono px-2 py-0.5 rounded"
+              style={{ fontSize: 10, background: "var(--amber-glow)", color: "var(--amber)", border: "1px solid var(--amber)" }}
+            >
+              emilkowalski/skill
+            </span>
+            <span
+              className="font-mono px-2 py-0.5 rounded"
+              style={{ fontSize: 10, background: "var(--bg-elevated)", color: "#f59e0b", border: "1px solid #f59e0b44" }}
+            >
+              CASE-BY-CASE ONLY — NOT ALWAYS ON
+            </span>
+          </div>
+
+          {/* Info block */}
+          <div className="flex flex-col gap-1">
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              · Activate: /emil-review → fires Emil review on current animation
+            </div>
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              · Call when: reviewing or improving a specific animation, not as a background layer
+            </div>
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              · NOT for: general builds, passive enforcement, every animation
+            </div>
+          </div>
+
+          {/* Three rule cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              { label: "≤ 300ms", detail: "All animations complete in under 300 milliseconds" },
+              { label: "CUSTOM EASING", detail: "No default ease-in-out. Custom cubic-bezier per interaction." },
+              { label: "PERCEIVED PERFORMANCE", detail: "Animation should make the app feel faster, not slower" },
+            ].map(({ label, detail }) => (
+              <div
+                key={label}
+                className="p-3 rounded flex flex-col gap-1"
+                style={{ background: "var(--bg-base)", border: "1px solid var(--border)" }}
+              >
+                <div className="font-display text-sm" style={{ color: "var(--amber)" }}>{label}</div>
+                <div className="font-mono text-xs" style={{ fontSize: 10, color: "var(--text-muted)" }}>{detail}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Example trigger */}
+          <div
+            className="font-mono text-xs"
+            style={{ color: "var(--text-dim)", opacity: 0.7 }}
+          >
+            Say: &quot;review my hero animation&quot; → Emil fires
+          </div>
+        </div>
+      </CollapsibleCard>
     </div>
   );
 }

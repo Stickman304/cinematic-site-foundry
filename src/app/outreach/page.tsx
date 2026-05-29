@@ -175,6 +175,145 @@ export default function Outreach() {
         <div className="font-display text-lg mb-3" style={{ color: "var(--amber)" }}>TELEGRAM ALERTS</div>
         <TelegramPanel />
       </div>
+
+      {/* Scout Agent */}
+      <div>
+        <div className="font-display text-2xl mb-3" style={{ color: "var(--amber)" }}>SCOUT AGENT</div>
+        <div className="rounded-lg border p-5 flex flex-col gap-4" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-base" style={{ color: "var(--amber)" }}>TREND RESEARCHER</span>
+              <span
+                className="font-mono px-2 py-0.5 rounded"
+                style={{ fontSize: 10, background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              >
+                CUSTOM AGENT
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
+              <span className="font-mono text-xs" style={{ color: "#f59e0b" }}>NEEDS CONFIG</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: "var(--text-dim)" }}>RUNS:</span> Monday 6AM via n8n on VPS2 · 82.197.95.156
+            </div>
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: "var(--text-dim)" }}>SCHEDULE:</span> n8n.srv1280524.hstgr.cloud · weekly automated
+            </div>
+            <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: "var(--text-dim)" }}>SOURCES:</span> YouTube · Reddit (r/webdev r/web_design) · X (#claudecode) · Awwwards · HackerNews · GitHub trending
+            </div>
+          </div>
+
+          <div
+            className="font-mono text-xs p-3 rounded"
+            style={{ background: "var(--bg-base)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+          >
+            <span style={{ color: "var(--text-dim)" }}>PRODUCES:</span>{" "}
+            20+ idea cards (viability 1–10) · 3 steal-and-elevate concepts · 1 trend report (hot/dying/emerging) · Telegram summary + Supabase archive
+          </div>
+
+          <a
+            href="https://n8n.srv1280524.hstgr.cloud"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center font-mono text-xs rounded transition-all hover:opacity-80"
+            style={{
+              minHeight: 44,
+              padding: "0 20px",
+              background: "transparent",
+              color: "var(--amber)",
+              border: "1px solid var(--amber)",
+              alignSelf: "flex-start",
+            }}
+          >
+            CONFIGURE N8N WORKFLOW ↗
+          </a>
+        </div>
+      </div>
+
+      {/* Prospector Agent */}
+      <div>
+        <div className="font-display text-2xl mb-3" style={{ color: "var(--amber)" }}>PROSPECTOR AGENT</div>
+        <div className="rounded-lg border p-5 flex flex-col gap-4" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-base" style={{ color: "var(--amber)" }}>PROSPECTOR</span>
+              <span
+                className="font-mono px-2 py-0.5 rounded"
+                style={{ fontSize: 10, background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              >
+                CUSTOM AGENT
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
+              <span className="font-mono text-xs" style={{ color: "#f59e0b" }}>NEEDS CONFIG</span>
+            </div>
+          </div>
+
+          <div className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--text-dim)" }}>RUNS:</span> Weekly or on demand via n8n
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {[
+              { n: 1, label: "FIND", detail: "firecrawl-lead-gen · Google Maps, Yelp, directories" },
+              { n: 2, label: "QUALIFY", detail: "score 1–10 · only 7+ advance" },
+              { n: 3, label: "BUILD DEMO", detail: "top 3 prospects · Tier 1 · 15 min · $0.10 budget" },
+              { n: 4, label: "RESEARCH OWNER", detail: "firecrawl-lead-research · LinkedIn · contact details" },
+              { n: 5, label: "DRAFT EMAIL", detail: "outbound-strategist → Gmail MCP → DRAFT only" },
+              { n: 6, label: "YOUR APPROVAL", detail: "HARD STOP · Nothing sends without you" },
+              { n: 7, label: "FOLLOW-UP", detail: "n8n · Day 3 → Day 7 → Day 14 → archive" },
+            ].map(({ n, label, detail }) => (
+              <div key={n} className="flex items-start gap-3">
+                <span
+                  className="font-mono text-xs shrink-0 w-5 text-right"
+                  style={{ color: n === 6 ? "var(--amber)" : "var(--text-dim)" }}
+                >
+                  {n}
+                </span>
+                <span
+                  className="font-mono text-xs shrink-0"
+                  style={{ color: n === 6 ? "var(--amber)" : "var(--text-muted)", minWidth: 120 }}
+                >
+                  {label}
+                </span>
+                <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>
+                  {detail}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="font-mono text-xs p-3 rounded"
+            style={{ background: "transparent", color: "var(--amber)", border: "1px solid var(--amber)" }}
+          >
+            NOTHING SENDS WITHOUT YOUR APPROVAL. Step 6 is a hard stop.
+          </div>
+
+          <a
+            href="https://n8n.srv1280524.hstgr.cloud"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center font-mono text-xs rounded transition-all hover:opacity-80"
+            style={{
+              minHeight: 44,
+              padding: "0 20px",
+              background: "transparent",
+              color: "var(--amber)",
+              border: "1px solid var(--amber)",
+              alignSelf: "flex-start",
+            }}
+          >
+            CONFIGURE N8N WORKFLOW ↗
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, MODEL } from "@/lib/anthropic";
 import { getBuildRecord, updateBuildState, logBuildEvent } from "@/lib/supabase";
+import { getExecutor, detectExecutorType } from "@/lib/mission-control/executors";
+import type { ExecutorInput } from "@/lib/mission-control/executors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -42,13 +44,79 @@ export async function POST(req: NextRequest) {
     status: "LOCKING_BUILD_SPEC",
   });
 
-  // Determine executor type
-  const executorType = process.env.EXECUTOR_TYPE ?? (process.env.OPENAI_API_KEY ? "codex" : "supervised");
-  await updateBuildState(buildId, { executorType });
+  // Detect executor type from env
+  const executorType = detectExecutorType();
+  await updateBuildState(buildId, { executorType, workflowState: "READY_FOR_EXECUTOR" });
 
-  // If Codex is configured, trigger the build
-  if (executorType === "codex" && process.env.OPENAI_API_KEY) {
-    await updateBuildState(buildId, { workflowState: "BUILDING_MOCKUP" });
+  await logBuildEvent({
+    agent: "mission-control",
+    action: "READY_FOR_EXECUTOR",
+    tier: build.tier,
+    build_id: buildId,
+    client_name: build.clientName,
+    status: "READY_FOR_EXECUTOR",
+  });
+
+  // Build executor input from locked artifacts
+  const executorInput: ExecutorInput = {
+    buildId,
+    approvedDirection: direction,
+    tier: build.tier ?? "tier2",
+    clientName: build.clientName,
+    photoUrls: build.photoUrls,
+    artifacts: {
+      buildSpec: chosen.artifacts.buildSpec,
+      designSystem: chosen.artifacts.designSystem,
+      creativeDirection: chosen.artifacts.creativeDirection,
+      antiSlopRules: chosen.artifacts.antiSlopRules,
+      copyBrief: chosen.artifacts.copyBrief,
+      motionPlan: chosen.artifacts.motionPlan,
+    },
+  };
+
+  // Transition to executor running state
+  await updateBuildState(buildId, { workflowState: "EXECUTOR_RUNNING" });
+  await logBuildEvent({
+    agent: "executor",
+    action: "EXECUTOR_RUNNING",
+    tier: build.tier,
+    build_id: buildId,
+    client_name: build.clientName,
+    status: "EXECUTOR_RUNNING",
+  });
+
+  // For UI compat: also mark BUILDING_MOCKUP (high-level label for activity panel)
+  await updateBuildState(buildId, { workflowState: "BUILDING_MOCKUP" });
+
+  // Run executor via adapter
+  const executor = getExecutor(executorType);
+  const result = await executor.run(executorInput);
+
+  if (result.status === "EXECUTOR_FAILED") {
+    await updateBuildState(buildId, {
+      workflowState: "EXECUTOR_FAILED",
+      errorMessage: result.errors[0] ?? "Executor failed",
+    });
+    await logBuildEvent({
+      agent: "executor",
+      action: "EXECUTOR_FAILED",
+      tier: build.tier,
+      build_id: buildId,
+      client_name: build.clientName,
+      status: "EXECUTOR_FAILED",
+    });
+    return NextResponse.json({
+      ok: false,
+      buildId,
+      direction,
+      executorType,
+      workflowState: "EXECUTOR_FAILED",
+      error: result.errors[0],
+    });
+  }
+
+  // Supervised — waiting for operator POST /api/build
+  if (executorType === "supervised") {
     await logBuildEvent({
       agent: "executor",
       action: "BUILDING_MOCKUP",
@@ -57,32 +125,39 @@ export async function POST(req: NextRequest) {
       client_name: build.clientName,
       status: "BUILDING_MOCKUP",
     });
-
-    // Run QA via Anthropic on the build spec
-    await runQA(buildId, build, chosen.artifacts.buildSpec);
-
-    return NextResponse.json({ ok: true, buildId, direction, executorType: "codex", workflowState: "QA_IN_PROGRESS" });
+    return NextResponse.json({
+      ok: true,
+      buildId,
+      direction,
+      executorType: "supervised",
+      workflowState: "BUILDING_MOCKUP",
+      instructions: `Build spec locked. Send to your executor:\n\n${chosen.artifacts.buildSpec.slice(0, 500)}...`,
+    });
   }
 
-  // Supervised executor — wait for operator to mark build complete
-  await updateBuildState(buildId, { workflowState: "BUILDING_MOCKUP" });
+  // Codex or mock — executor returned qaReady: true, run QA now
+  await updateBuildState(buildId, { workflowState: "EXECUTOR_COMPLETE" });
   await logBuildEvent({
     agent: "executor",
-    action: "BUILDING_MOCKUP",
+    action: "EXECUTOR_COMPLETE",
     tier: build.tier,
     build_id: buildId,
     client_name: build.clientName,
-    status: "BUILDING_MOCKUP",
+    status: "EXECUTOR_COMPLETE",
   });
 
-  return NextResponse.json({
-    ok: true,
-    buildId,
-    direction,
-    executorType: "supervised",
-    workflowState: "BUILDING_MOCKUP",
-    instructions: `Build spec locked. Send to executor:\n\n${chosen.artifacts.buildSpec.slice(0, 500)}...`,
-  });
+  if (result.qaReady) {
+    await runQA(buildId, build, chosen.artifacts.buildSpec);
+    return NextResponse.json({
+      ok: true,
+      buildId,
+      direction,
+      executorType,
+      workflowState: "QA_IN_PROGRESS",
+    });
+  }
+
+  return NextResponse.json({ ok: true, buildId, direction, executorType, workflowState: "EXECUTOR_COMPLETE" });
 }
 
 async function runQA(buildId: string, build: { tier?: string; clientName?: string; totalCost: number }, buildSpec: string) {
@@ -149,7 +224,7 @@ Return this exact JSON shape:
     });
 
     await logBuildEvent({
-      agent: "qa-scorer",
+      agent: "qa-inspector",
       action: "PREVIEW_READY",
       tier: build.tier,
       cost: qaCost,
@@ -158,7 +233,6 @@ Return this exact JSON shape:
       status: "PREVIEW_READY",
     });
 
-    // Auto-generate sales package
     await generateSalesPackage(buildId, build, buildSpec, qaCost);
   } catch (err) {
     await updateBuildState(buildId, { workflowState: "ERROR", errorMessage: (err as Error).message });
@@ -220,6 +294,6 @@ Return this exact JSON shape:
       status: "OUTREACH_DRAFTED",
     });
   } catch {
-    // Sales package failure is non-critical — build still passes QA
+    // Sales package failure is non-critical
   }
 }

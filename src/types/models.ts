@@ -41,7 +41,12 @@ export type WorkflowState =
   | "GENERATING_DIRECTIONS"
   | "WAITING_FOR_APPROVAL"
   | "LOCKING_BUILD_SPEC"
+  | "READY_FOR_EXECUTOR"
+  | "EXECUTOR_QUEUED"
+  | "EXECUTOR_RUNNING"
   | "BUILDING_MOCKUP"
+  | "EXECUTOR_COMPLETE"
+  | "EXECUTOR_FAILED"
   | "QA_IN_PROGRESS"
   | "PREVIEW_READY"
   | "OUTREACH_DRAFTED"
@@ -50,18 +55,20 @@ export type WorkflowState =
   | "ERROR";
 
 export const WORKFLOW_STEPS: { state: WorkflowState; label: string }[] = [
-  { state: "URL_RECEIVED",         label: "URL Received" },
-  { state: "AUDITING_WEBSITE",     label: "Auditing Website" },
-  { state: "SCORING_OPPORTUNITY",  label: "Scoring Opportunity" },
-  { state: "GENERATING_DIRECTIONS",label: "Generating Directions" },
-  { state: "WAITING_FOR_APPROVAL", label: "Awaiting Approval" },
-  { state: "LOCKING_BUILD_SPEC",   label: "Locking Spec" },
-  { state: "BUILDING_MOCKUP",      label: "Building" },
-  { state: "QA_IN_PROGRESS",       label: "QA Scoring" },
-  { state: "PREVIEW_READY",        label: "Preview Ready" },
-  { state: "OUTREACH_DRAFTED",     label: "Outreach Drafted" },
-  { state: "COMPLETE",             label: "Complete" },
+  { state: "URL_RECEIVED",          label: "URL Received" },
+  { state: "AUDITING_WEBSITE",      label: "Auditing Website" },
+  { state: "SCORING_OPPORTUNITY",   label: "Scoring Opportunity" },
+  { state: "GENERATING_DIRECTIONS", label: "Generating Directions" },
+  { state: "WAITING_FOR_APPROVAL",  label: "Awaiting Approval" },
+  { state: "LOCKING_BUILD_SPEC",    label: "Locking Spec" },
+  { state: "BUILDING_MOCKUP",       label: "Building" },
+  { state: "QA_IN_PROGRESS",        label: "QA Scoring" },
+  { state: "PREVIEW_READY",         label: "Preview Ready" },
+  { state: "OUTREACH_DRAFTED",      label: "Outreach Drafted" },
+  { state: "COMPLETE",              label: "Complete" },
 ];
+
+export type ExecutorType = "supervised" | "codex" | "mock";
 
 // ── Audit Object ────────────────────────────────────────────────────────────
 

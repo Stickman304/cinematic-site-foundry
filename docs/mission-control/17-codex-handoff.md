@@ -1,32 +1,47 @@
-# Mission Control — Codex / Claude Code Handoff Format
+# Mission Control — Codex/OpenAI Executor Handoff
 
-This document defines the exact format used when Mission Control hands off a locked build spec to a code executor.
+Mission Control is the product. Codex/OpenAI is the preferred hidden executor. Claude Code is not used inside the Mission Control runtime. All executors must follow Mission Control specs.
+
+---
+
+## Architecture
+
+```
+Mission Control (product)
+  → Executor Adapter (src/lib/mission-control/executors/)
+    → CodexExecutor    — Codex/OpenAI Responses API
+    → SupervisedExecutor — operator-triggered via POST /api/build
+    → MockExecutor     — testing only
+```
+
+Claude Code may help maintain the repo externally (as a developer tool). It is not invoked during any build pipeline step.
 
 ---
 
 ## Handoff Trigger
 
 The handoff is triggered when:
-1. The operator approves a direction
+1. The operator approves a direction (POST /api/approve)
 2. Mission Control locks the build spec
-3. The operator clicks "Send to Executor" in the Mission Control UI
+3. The executor adapter selects the appropriate executor
+4. The executor receives `ExecutorInput` with all locked artifacts
 
 ---
 
-## Codex Handoff — API Call
+## Codex/OpenAI Executor — API Call
 
-Mission Control sends a single API request to the Codex Responses API:
+`CodexExecutor.run()` sends a single API request to the OpenAI Responses API:
 
 ```typescript
-const response = await fetch("https://api.openai.com/v1/responses", {
+const res = await fetch("https://api.openai.com/v1/responses", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "codex-mini-latest",
-    input: buildHandoffPrompt(lockedBuildSpec, photoUrls),
+    model: process.env.OPENAI_CODEX_MODEL ?? "codex-mini-latest",
+    input: buildHandoffPrompt(input),
     tools: [
       { type: "shell" },
       { type: "text_editor" },
@@ -39,107 +54,128 @@ const response = await fetch("https://api.openai.com/v1/responses", {
 
 ## Handoff Prompt Format
 
-```
-You are executing a locked website build specification. You are the builder. Mission Control has designed this site. Your job is to build exactly what the spec says.
+The prompt passed to the executor includes:
 
-RULES:
-- Build exactly what the spec describes. Do not interpret or improve it.
+```
+You are the Hidden Build Executor for Mission Control. You have been given a locked
+build specification. Your only job is to build exactly what the spec describes.
+
+HARD RULES — NO EXCEPTIONS:
+- Build exactly what the spec describes. Do not interpret, improve, or extend it.
 - Do not add features not in the spec.
 - Do not remove features from the spec.
-- Use the exact colors, fonts, and layout described.
-- Do not include placeholder text in the final output. Use [PLACEHOLDER: description] format for content requiring client input.
-- Do not hardcode API keys. Use process.env.VAR_NAME references.
-- Return all changed files in the executor output format.
+- Use the exact colors, fonts, and layouts described in the design system.
+- Do not hardcode API keys — use process.env.VAR_NAME references.
+- Do not send outreach of any kind.
+- Do not deploy to production — build locally only.
+- Do not delete project files without explicit approval.
 
 CLIENT: [clientName]
 TIER: [tier]
 DIRECTION: [A|B]
 BUILD ID: [buildId]
 
+--- DESIGN SYSTEM BEGIN ---
+[designSystem artifacts]
+--- DESIGN SYSTEM END ---
+
+--- ANTI-SLOP RULES BEGIN ---
+[antiSlopRules artifacts]
+--- ANTI-SLOP RULES END ---
+
+--- COPY BRIEF BEGIN ---
+[copyBrief artifacts]
+--- COPY BRIEF END ---
+
+--- MOTION PLAN BEGIN ---
+[motionPlan artifacts]
+--- MOTION PLAN END ---
+
 --- BUILD SPEC BEGIN ---
-[full content of locked build-spec.md]
+[full content of locked buildSpec]
 --- BUILD SPEC END ---
-
-CLIENT PHOTOS:
-[list of photo URLs or "None provided"]
-
-Begin building.
 ```
 
 ---
 
-## Claude Code Handoff — Operator-Supervised
+## Executor Output Format
 
-When the executor is Claude Code (operator-supervised), Mission Control:
+`CodexExecutor.run()` returns `ExecutorOutput`:
 
-1. Writes the locked build spec to `builds/[buildId]/build-spec.md`
-2. Displays this message in Mission Control:
-
-```
-BUILD SPEC LOCKED
-Build ID: [buildId]
-Spec written to: builds/[buildId]/build-spec.md
-
-To start the build:
-1. Open a Claude Code session
-2. cd to your project directory
-3. Run: claude "Read builds/[buildId]/build-spec.md and build this website"
-4. When complete, return to Mission Control and click "Build Complete"
-```
-
-3. Waits for the operator to click "Build Complete"
-4. Operator pastes or uploads the executor output JSON
-
----
-
-## Executor Output JSON
-
-The executor (Codex, Claude Code, or other) returns:
-
-```json
+```typescript
 {
-  "buildId": "uuid",
-  "status": "complete",
-  "files": [
-    {
-      "path": "src/app/page.tsx",
-      "operation": "created"
-    },
-    {
-      "path": "src/components/Hero.tsx",
-      "operation": "created"
-    },
-    {
-      "path": "public/images/hero-bg.jpg",
-      "operation": "created"
-    }
-  ],
-  "errors": [],
-  "warnings": [
-    {
-      "message": "Hero image is a placeholder — replace with client-supplied photo before launch"
-    }
-  ],
-  "previewUrl": "https://preview-url.netlify.app",
-  "buildTimeMs": 42000
+  status: "complete" | "partial" | "EXECUTOR_FAILED",
+  executorType: "codex",
+  changedFiles: [{ path: string, operation: "created" | "updated" | "deleted" }],
+  previewUrl?: string,
+  logs: string[],
+  errors: string[],
+  qaReady: boolean,
+  completedAt?: string,
 }
 ```
 
-Mission Control receives this JSON and:
-1. Logs it to Supabase
-2. Updates build status to `QA_IN_PROGRESS`
-3. Sends to QA scoring
-4. Displays executor panel in Mission Control
+Mission Control receives this and:
+1. If `status === "EXECUTOR_FAILED"` → sets `workflowState = EXECUTOR_FAILED`, surfaces error to operator
+2. If `qaReady === true` → runs QA Inspector, transitions to `QA_IN_PROGRESS`
+3. QA passes → generates sales package → `OUTREACH_DRAFTED`
 
 ---
 
-## Partial Build Handling
+## Supervised Mode — Operator-Triggered
 
-If the executor returns `"status": "partial"`:
-- Mission Control logs `status: "error"` to Supabase
-- Surfaces the partial result to the operator
-- Operator reviews errors and decides: retry, fix manually, or discard build
-- No QA or preview generated for partial builds
+When `EXECUTOR_TYPE=supervised`:
+
+1. Mission Control locks build spec, sets `BUILDING_MOCKUP`
+2. Mission Control returns instructions to the operator with the spec preview
+3. Operator takes the spec to their executor of choice
+4. When the build is ready, operator calls:
+
+```
+POST /api/build
+Content-Type: application/json
+
+{
+  "buildId": "uuid",
+  "previewUrl": "https://preview.example.com",
+  "filesChanged": ["src/app/page.tsx", "src/components/Hero.tsx"],
+  "errors": []
+}
+```
+
+5. Mission Control marks executor complete, transitions to `QA_IN_PROGRESS`
+6. QA runs → Sales Package generates
+
+---
+
+## Missing OPENAI_API_KEY Behavior
+
+If `EXECUTOR_TYPE=codex` and `OPENAI_API_KEY` is not set, `CodexExecutor` returns:
+
+```json
+{
+  "status": "EXECUTOR_FAILED",
+  "executorType": "codex",
+  "changedFiles": [],
+  "logs": [],
+  "errors": ["OPENAI_API_KEY is not configured"],
+  "qaReady": false
+}
+```
+
+Mission Control sets `workflowState = EXECUTOR_FAILED` and surfaces the error. The workflow does not crash. The operator can set the key and retry.
+
+---
+
+## Required Environment Variables
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| OPENAI_API_KEY | Yes (codex only) | — | Codex/OpenAI executor authentication |
+| OPENAI_CODEX_MODEL | No | codex-mini-latest | Model to use |
+| OPENAI_EXECUTOR_TIMEOUT_MS | No | 600000 | Per-request timeout |
+| OPENAI_EXECUTOR_MAX_RETRIES | No | 2 | Retry count on transient errors |
+| EXECUTOR_TYPE | No | auto-detected | supervised \| mock \| codex |
 
 ---
 
@@ -153,3 +189,12 @@ If the executor returns `"status": "partial"`:
 | Tier 4 | 30–60+ files |
 
 If the executor returns significantly fewer files than expected for the tier, Mission Control flags this to the operator before QA.
+
+---
+
+## Partial Build Handling
+
+If the executor returns `status: "partial"`:
+- Mission Control surfaces the partial result to the operator
+- Operator reviews errors and decides: retry, fix manually, or discard
+- No QA or preview is generated for partial builds without operator approval

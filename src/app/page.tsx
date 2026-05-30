@@ -54,8 +54,22 @@ function BuildLauncher() {
   }
 
   async function handleLaunch() {
-    if (!url.trim()) { setUrlError("Client URL is required"); return; }
+    const rawUrl = url.trim();
+    if (!rawUrl) { setUrlError("Client URL is required"); return; }
     if (!selectedTier) return;
+
+    // Validate URL format
+    let validatedUrl = rawUrl;
+    if (!validatedUrl.startsWith("http://") && !validatedUrl.startsWith("https://")) {
+      validatedUrl = `https://${validatedUrl}`;
+    }
+    try {
+      new URL(validatedUrl);
+    } catch {
+      setUrlError("Invalid URL — enter a valid website address");
+      return;
+    }
+
     setUrlError("");
     setLaunchError("");
     const tier = TIERS.find((t) => t.id === selectedTier)!;
@@ -80,7 +94,7 @@ function BuildLauncher() {
       setLaunchStatus("launching");
       const body = {
         tier: tier.label,
-        url: url.trim(),
+        url: validatedUrl,
         clientName: clientName.trim() || undefined,
         notes: notes.trim() || undefined,
         photoUrls,

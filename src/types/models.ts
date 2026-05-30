@@ -32,6 +32,156 @@ export interface ActivityEntry {
   cost?: number;
 }
 
+// ── Workflow States ─────────────────────────────────────────────────────────
+
+export type WorkflowState =
+  | "URL_RECEIVED"
+  | "AUDITING_WEBSITE"
+  | "SCORING_OPPORTUNITY"
+  | "GENERATING_DIRECTIONS"
+  | "WAITING_FOR_APPROVAL"
+  | "LOCKING_BUILD_SPEC"
+  | "BUILDING_MOCKUP"
+  | "QA_IN_PROGRESS"
+  | "PREVIEW_READY"
+  | "OUTREACH_DRAFTED"
+  | "WAITING_FOR_SEND_APPROVAL"
+  | "COMPLETE"
+  | "ERROR";
+
+export const WORKFLOW_STEPS: { state: WorkflowState; label: string }[] = [
+  { state: "URL_RECEIVED",         label: "URL Received" },
+  { state: "AUDITING_WEBSITE",     label: "Auditing Website" },
+  { state: "SCORING_OPPORTUNITY",  label: "Scoring Opportunity" },
+  { state: "GENERATING_DIRECTIONS",label: "Generating Directions" },
+  { state: "WAITING_FOR_APPROVAL", label: "Awaiting Approval" },
+  { state: "LOCKING_BUILD_SPEC",   label: "Locking Spec" },
+  { state: "BUILDING_MOCKUP",      label: "Building" },
+  { state: "QA_IN_PROGRESS",       label: "QA Scoring" },
+  { state: "PREVIEW_READY",        label: "Preview Ready" },
+  { state: "OUTREACH_DRAFTED",     label: "Outreach Drafted" },
+  { state: "COMPLETE",             label: "Complete" },
+];
+
+// ── Audit Object ────────────────────────────────────────────────────────────
+
+export interface AuditObject {
+  websiteScore: number;
+  opportunityScore: number;
+  sellabilityScore: number;
+  topProblems: string[];
+  recommendedTier: "tier1" | "tier2" | "tier3" | "tier4";
+  upgradeAngle: string;
+  clientNameExtracted?: string;
+  industryExtracted?: string;
+  locationExtracted?: string;
+}
+
+// ── Creative Directions ─────────────────────────────────────────────────────
+
+export interface DirectionArtifacts {
+  designSystem: string;
+  creativeDirection: string;
+  antiSlopRules: string;
+  copyBrief: string;
+  motionPlan: string;
+  buildSpec: string;
+}
+
+export interface Direction {
+  id: "A" | "B";
+  name: string;
+  concept: string;
+  heroHeadline: string;
+  heroSubheadline: string;
+  visualFeel: string;
+  keyDifferentiator: string;
+  gradientType: string;
+  heroLayout: string;
+  artifacts: DirectionArtifacts;
+}
+
+// ── QA Scorecard ────────────────────────────────────────────────────────────
+
+export interface QAScorecardDimension {
+  score: number;
+  pass: boolean;
+  notes: string;
+}
+
+export interface QAScorecard {
+  dimensions: {
+    visualTaste: QAScorecardDimension;
+    mobileExperience: QAScorecardDimension;
+    ctaStrength: QAScorecardDimension;
+    copyQuality: QAScorecardDimension;
+    trustArchitecture: QAScorecardDimension;
+    performanceRisk: QAScorecardDimension;
+    brandPerception: QAScorecardDimension;
+    motionQuality: QAScorecardDimension;
+    seoFoundation: QAScorecardDimension;
+    codeMaintainability: QAScorecardDimension;
+  };
+  finalScore: number;
+  pass: boolean;
+  failingDimensions: string[];
+  recommendations: string[];
+}
+
+// ── Sales Package ───────────────────────────────────────────────────────────
+
+export interface SalesPackage {
+  pitchEmail: string;
+  sms: string;
+  callScript: string;
+  proposalSummary: string;
+  beforeAfterFraming: string;
+  approved: {
+    email: boolean;
+    sms: boolean;
+    callScript: boolean;
+    proposal: boolean;
+  };
+}
+
+// ── Executor ────────────────────────────────────────────────────────────────
+
+export interface ExecutorResult {
+  status: "complete" | "error" | "partial";
+  files: { path: string; operation: "created" | "updated" | "deleted" }[];
+  errors: { file?: string; line?: number; message: string }[];
+  warnings: { message: string }[];
+  previewUrl?: string;
+  buildTimeMs: number;
+}
+
+// ── Build Record (full pipeline state) ─────────────────────────────────────
+
+export interface BuildRecord {
+  buildId: string;
+  url: string;
+  clientName?: string;
+  tier?: string;
+  notes?: string;
+  photoUrls: string[];
+  workflowState: WorkflowState;
+  auditObject?: AuditObject;
+  directionA?: Direction;
+  directionB?: Direction;
+  approvedDirection?: "A" | "B";
+  lockedBuildSpec?: string;
+  executorType?: string;
+  executorResult?: ExecutorResult;
+  qaScorecard?: QAScorecard;
+  salesPackage?: SalesPackage;
+  totalCost: number;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Legacy types (unchanged) ────────────────────────────────────────────────
+
 export type ProspectStatus =
   | "found"
   | "queued"

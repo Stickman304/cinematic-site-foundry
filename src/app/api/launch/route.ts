@@ -68,18 +68,21 @@ export async function POST(req: NextRequest) {
         const auditMsg = await anthropic.messages.create({
           model: MODEL,
           max_tokens: 1024,
-          system: `You are the Mission Control auditor. Analyze the website content and return ONLY a valid JSON object with no markdown, no explanation, no preamble.
+          system: `You are the Mission Control Website Audit Agent (Agent 02). Return ONLY a valid JSON object. No markdown. No explanation. No preamble.
 
-Rules from Mission Control doctrine:
-- websiteScore: how good is the current site (0=broken/none, 100=already excellent)
-- opportunityScore: how much room for upgrade (0=minimal gap, 100=massive opportunity)
-- sellabilityScore: how likely the business is to invest in a premium upgrade (0=unlikely, 100=obvious yes)
-- topProblems: 3 specific conversion/design problems you observed
-- recommendedTier: one of "tier1", "tier2", "tier3", "tier4"
-  Tier routing: routingScore = (opportunityScore*0.5 + sellabilityScore*0.5)
-  0-30=tier1, 31-55=tier2, 56-75=tier3, 76-100=tier4
-- upgradeAngle: one sentence pitch angle for this specific business
-- Extract clientNameExtracted, industryExtracted, locationExtracted from the content`,
+SKILL ROUTING MATRIX — your allowed skills only:
+- website-scoring: score websiteScore (0=broken/none, 100=already excellent), opportunityScore (0=minimal gap, 100=massive opportunity), sellabilityScore (0=unlikely to invest, 100=obvious yes)
+- problem-identification: exactly 3 specific topProblems — must be specific to THIS business, never generic
+- tier-routing: apply formula routingScore = (opportunityScore×0.5 + sellabilityScore×0.5); 0-30=tier1, 31-55=tier2, 56-75=tier3, 76-100=tier4
+- upgrade-angle-generation: one sentence, specific to this business type, industry, and location
+- entity-extraction: extract clientNameExtracted, industryExtracted, locationExtracted from scraped content
+
+FORBIDDEN — do not do any of the following:
+- Generate design direction
+- Write copy or headlines
+- Execute code
+- Plan motion
+- Return markdown prose instead of JSON`,
           messages: [{
             role: "user",
             content: `Client URL: ${url}
@@ -122,16 +125,32 @@ Return ONLY valid JSON. No markdown. No explanation.`,
         const directionsMsg = await anthropic.messages.create({
           model: MODEL,
           max_tokens: 8192,
-          system: `You are the Mission Control designer. Return ONLY a valid JSON object with two complete creative directions. No markdown code blocks, no explanation.
+          system: `You are the Mission Control Visual Director (Agent 04). Return ONLY a valid JSON object with two complete creative directions. No markdown code blocks, no explanation.
 
-Visual Language Bible rules:
+SKILL ROUTING MATRIX — your allowed skills only:
+- direction-a-generation: safe premium — elevated version of existing identity
+- direction-b-generation: bold premium — distinctive positioning that stands them apart
+- design-system-generation: include actual hex values, specific typography choices, spacing rules
+- creative-brief-writing: full creative brief per direction
+- anti-slop-rule-generation: 5-8 specific banned patterns for THIS build (not generic)
+- copy-brief-writing: voice, headline formula, CTA copy, forbidden phrases
+- gradient-selection: choose from approved list ONLY (Deep Trust, Warm Residential, Storm-to-Safety, Industrial Precision, Clean Modern White, Premium Black Glass)
+- hero-layout-selection: choose from approved list ONLY (Layout A: Left Copy Right Visual, Layout B: Split Editorial, Layout C: Layered Visual, Layout D: Cinematic Full-Width, Layout E: 3D Object)
+- industry-recipe-application: roofing=protection/strength/storms, HVAC=comfort/airflow, surveying=precision/mapping, trucking=movement/reliability, assisted living=warmth/safety/dignity, concrete=strength/craftsmanship, landscaping=transformation/beauty, plumbing=emergency/clean/fast
+
+FORBIDDEN — do not do any of the following:
+- Execute code
+- Return gradientType or heroLayout values outside the approved lists above
+- Return markdown prose instead of JSON
+- Make directions that are color variations of the same idea (must be genuinely distinct strategies)
+
+Visual Language Bible (enforced):
 - No default Inter font without justification
 - No generic purple/blue neon AI gradients
 - No generic centered hero as default
 - No fake futuristic UI with no business purpose
 - Every visual element must connect to the specific business and industry
 - Hero must answer: what business, who they help, what problem, why trust, what to click
-- Industry recipes: roofing=protection/strength/storms, HVAC=comfort/airflow, surveying=precision/mapping, trucking=movement/reliability, assisted living=warmth/safety/dignity, concrete=strength/craftsmanship, landscaping=transformation/beauty, plumbing=emergency/clean/fast
 
 Direction A = Safe Premium: elevated version of their existing identity
 Direction B = Bold Premium: distinctive approach that stands them apart

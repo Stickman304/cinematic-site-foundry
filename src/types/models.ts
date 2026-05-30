@@ -171,6 +171,12 @@ export interface BuildRecord {
   tier?: string;
   notes?: string;
   photoUrls: string[];
+  // client intake fields
+  clientId?: string;
+  clientSlug?: string;
+  clientAssets?: ClientAsset[];
+  brandNotes?: string;
+  intakeSnapshot?: Partial<Client>;
   workflowState: WorkflowState;
   auditObject?: AuditObject;
   directionA?: Direction;
@@ -185,6 +191,65 @@ export interface BuildRecord {
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Client Intake ────────────────────────────────────────────────────────────
+
+export type AssetType = "logo" | "product" | "personal" | "location" | "social" | "other";
+export type AssetSource = "upload" | "url" | "generated";
+export type AssetApprovalStatus = "approved" | "pending" | "needs_permission" | "restricted";
+export type AllowedUse = "build" | "sales" | "social" | "any";
+
+export interface Client {
+  id: string;
+  slug: string;
+  name: string;
+  businessType?: string;
+  websiteUrl?: string;
+  brandNotes?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  fontPreference?: string;
+  logoUrl?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientAsset {
+  id: string;
+  clientId: string;
+  buildId?: string;
+  assetType: AssetType;
+  assetSource: AssetSource;
+  fileName?: string;
+  fileUrl: string;
+  storagePath?: string;
+  altText?: string;
+  approvalStatus: AssetApprovalStatus;
+  allowedUse: AllowedUse[];
+  containsPeople: boolean;
+  containsMinor: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientIntakeNote {
+  id: string;
+  clientId: string;
+  note: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface ClientWithAssets extends Client {
+  assets: ClientAsset[];
+  intakeNotes: ClientIntakeNote[];
 }
 
 // ── Legacy types (unchanged) ────────────────────────────────────────────────

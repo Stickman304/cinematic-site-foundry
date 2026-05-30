@@ -3,7 +3,7 @@ import { anthropic, MODEL } from "@/lib/anthropic";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { logBuildEvent, createBuildRecord, updateBuildState } from "@/lib/supabase";
 import { randomUUID } from "crypto";
-import type { AuditObject, Direction } from "@/types/models";
+import type { AuditObject, Direction, ClientAsset } from "@/types/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -20,8 +20,69 @@ function calcCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15;
 }
 
+function buildClientContext(
+  brandNotes?: string,
+  clientAssets?: ClientAsset[]
+): string {
+  if (!brandNotes && (!clientAssets || clientAssets.length === 0)) return "";
+
+  const lines: string[] = ["\n\nCLIENT BRAND CONTEXT (use this to enrich your design decisions):"];
+
+  if (brandNotes) {
+    lines.push(`Brand Notes: ${brandNotes}`);
+  }
+
+  if (clientAssets && clientAssets.length > 0) {
+    const approved = clientAssets.filter(a => a.approvalStatus === "approved" && !a.containsMinor);
+    if (approved.length > 0) {
+      lines.push("\nApproved Assets Available:");
+      const grouped: Record<string, string[]> = {};
+      for (const a of approved) {
+        if (!grouped[a.assetType]) grouped[a.assetType] = [];
+        const label = a.altText ? `${a.fileUrl} (${a.altText})` : a.fileUrl;
+        grouped[a.assetType].push(label);
+      }
+      for (const [type, urls] of Object.entries(grouped)) {
+        lines.push(`  ${type}: ${urls.join(", ")}`);
+      }
+    }
+
+    const restricted = clientAssets.filter(a => a.approvalStatus === "restricted" || a.containsMinor);
+    if (restricted.length > 0) {
+      lines.push(`\nRESTRICTED ASSETS (${restricted.length} total) — DO NOT reference these in build spec or sales package. They are excluded.`);
+    }
+
+    const needsPermission = clientAssets.filter(a => a.approvalStatus === "needs_permission");
+    if (needsPermission.length > 0) {
+      lines.push(`\nAssets Pending Permission (${needsPermission.length} total) — Do not use in build spec until operator approves.`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export async function POST(req: NextRequest) {
-  const { tier, url: rawUrl, clientName, notes, photoUrls = [] } = await req.json();
+  const {
+    tier,
+    url: rawUrl,
+    clientName,
+    notes,
+    photoUrls = [],
+    clientId,
+    clientSlug,
+    brandNotes,
+    clientAssets,
+  } = await req.json() as {
+    tier?: string;
+    url?: string;
+    clientName?: string;
+    notes?: string;
+    photoUrls?: string[];
+    clientId?: string;
+    clientSlug?: string;
+    brandNotes?: string;
+    clientAssets?: ClientAsset[];
+  };
 
   if (!rawUrl) {
     return new Response(JSON.stringify({ error: "url is required" }), { status: 400 });
@@ -42,8 +103,14 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        const clientContext = buildClientContext(brandNotes, clientAssets);
+
         // ── Init record ────────────────────────────────────────────────────
-        await createBuildRecord({ buildId, url, clientName, tier, notes, photoUrls });
+        await createBuildRecord({
+          buildId, url, clientName, tier, notes, photoUrls,
+          clientId, clientSlug, brandNotes,
+          clientAssets: clientAssets?.filter(a => a.approvalStatus === "approved" && !a.containsMinor),
+        });
         send("mission-control", "URL_RECEIVED", `Build ${buildId} started for ${url}`);
 
         // ── Stage 1: Firecrawl ─────────────────────────────────────────────
@@ -87,7 +154,7 @@ FORBIDDEN — do not do any of the following:
             role: "user",
             content: `Client URL: ${url}
 Client Name Provided: ${clientName || "not provided"}
-Tier Requested: ${tier || "auto-route"}
+Tier Requested: ${tier || "auto-route"}${clientContext}
 
 Scraped content (first 10000 chars):
 ${markdown || "[scrape unavailable — work from URL]"}
@@ -203,7 +270,7 @@ Client Name: ${clientName || auditObject.clientNameExtracted || "not provided"}
 Industry: ${auditObject.industryExtracted || "not detected"}
 Location: ${auditObject.locationExtracted || "not detected"}
 Tier: ${effectiveTier}
-Notes: ${notes || "none"}
+Notes: ${notes || "none"}${clientContext}
 
 Audit Results:
 - Website Score: ${auditObject.websiteScore}/100

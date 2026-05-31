@@ -88,7 +88,6 @@ const ANIMATION_TIERS = [
   { label: "TIER 2 — Higgsfield + Google Flow Video Pipeline", color: "var(--amber)", lines: ["Nano Banana 2 + Kling 3.0 + Seedance 2.0", "OR Google Flow + Veo 3.1 (agent decides per brief)", "Modules add: #09 #13 #14 #20 #29", "Cost: ~$1.50–$3 · Time: 60–90 min"] },
   { label: "TIER 3 — Full 3D Stack", color: "#8b5cf6", lines: ["Spline + Three.js + GSAP scroll frames", "Modules add: #03 #22 #24 #26 #28", "Cost: ~$5–$8 · Time: 3–4 hours"] },
   { label: "PREMIUM — Event Level", color: "#ec4899", lines: ["Full 3D world · multiple generation rounds", "WebGPU via TSL where applicable", "All modules active", "Cost: ~$10–$15 · Time: 4–6 hours"] },
-  { label: "UGC CAMPAIGN", color: "var(--amber)", lines: ["20 videos: ~$180 · 50 videos: ~$450 · 100: ~$900", "Time: 2–3 hours"] },
 ];
 
 const CINEMATIC_RULES = [
@@ -162,33 +161,6 @@ const BUILD_TYPES = [
     stages: ["Audit", "Brand Profile", "Creative Brief", "Asset Gen", "Build", "QA", "Deploy"],
     avgCost: "$3.00",
     avgTime: "90 min",
-  },
-  {
-    id: "outreach_demo",
-    label: "OUTREACH DEMO",
-    icon: "◎",
-    desc: "15-min pitch demo",
-    stages: ["Audit", "Brand Profile", "Build (Light)", "QA"],
-    avgCost: "$0.50",
-    avgTime: "15 min",
-  },
-  {
-    id: "premium",
-    label: "PREMIUM",
-    icon: "◇",
-    desc: "Full cinematic build",
-    stages: ["All 10 stages + social content"],
-    avgCost: "$8.00",
-    avgTime: "3 hr",
-  },
-  {
-    id: "ugc_campaign",
-    label: "UGC CAMPAIGN",
-    icon: "◑",
-    desc: "Social-first content pack",
-    stages: ["Brand Profile", "Asset Gen", "Social", "Deploy"],
-    avgCost: "$5.00",
-    avgTime: "60 min",
   },
 ];
 

@@ -555,18 +555,6 @@ export default function Pipeline() {
       </div>
 
       {/* ── Two-Build Rule Banner ────────────────────────────── */}
-      <div
-        className="rounded-lg px-5 py-3 font-mono text-xs"
-        style={{
-          background: "var(--amber)",
-          color: "#000",
-          lineHeight: 1.6,
-        }}
-      >
-        ⚡ TWO-BUILD RULE: Every client gets two distinct creative directions.{" "}
-        <span className="font-bold">visual-storyteller</span> produces both. You approve before build starts.
-      </div>
-
       {/* ── Tier Cards 2×2 grid ──────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 

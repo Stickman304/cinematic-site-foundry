@@ -8,11 +8,8 @@ const NAV = [
   { href: "/activity", label: "LIVE ACTIVITY", icon: "🟢" },
   { href: "/command", label: "COMMAND", icon: "⌘" },
   { href: "/work", label: "WORK", icon: "◻" },
-  { href: "/outreach", label: "OUTREACH", icon: "◎" },
   { href: "/costs", label: "COSTS", icon: "◇" },
-  { href: "/ugc", label: "UGC CAMPAIGN", icon: "◑" },
   { href: "/preview", label: "PREVIEW", icon: "⊡" },
-  { href: "/clients", label: "CLIENTS", icon: "◈" },
 ];
 
 export function Sidebar() {
@@ -51,13 +48,7 @@ export function Sidebar() {
           <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>SYSTEMS ONLINE</span>
         </div>
         <div className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>
-          200+ agents loaded
-        </div>
-        <div className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>
-          Higgsfield MCP ✓
-        </div>
-        <div className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>
-          Firecrawl ✓
+          Orchestrator v2.0.1
         </div>
       </div>
     </nav>

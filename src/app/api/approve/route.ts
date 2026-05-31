@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       buildId,
       direction,
       executorType,
-      workflowState: "QA_IN_PROGRESS",
+      workflowState: "QA_RUNNING",
     });
   }
 
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function runQA(buildId: string, build: { tier?: string; clientName?: string; totalCost: number }, buildSpec: string) {
-  await updateBuildState(buildId, { workflowState: "QA_IN_PROGRESS" });
+  await updateBuildState(buildId, { workflowState: "QA_RUNNING" });
 
   try {
     const qaMsg = await anthropic.messages.create({
@@ -224,7 +224,7 @@ Return this exact JSON shape:
     });
 
     await logBuildEvent({
-      agent: "qa-inspector",
+      agent: "orchestrator",
       action: "PREVIEW_READY",
       tier: build.tier,
       cost: qaCost,
@@ -232,68 +232,7 @@ Return this exact JSON shape:
       client_name: build.clientName,
       status: "PREVIEW_READY",
     });
-
-    await generateSalesPackage(buildId, build, buildSpec, qaCost);
   } catch (err) {
-    await updateBuildState(buildId, { workflowState: "ERROR", errorMessage: (err as Error).message });
-  }
-}
-
-async function generateSalesPackage(buildId: string, build: { tier?: string; clientName?: string; totalCost: number }, buildSpec: string, prevCost: number) {
-  try {
-    const salesMsg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 3000,
-      system: `You are the Mission Control Sales Package Agent (Agent 09). Generate a complete outreach package. Return ONLY valid JSON. No markdown. No explanation.
-
-SKILL ROUTING MATRIX — your allowed skills only:
-- pitch-email-writing: full cold email, under 200 words, references specific business name and identified problems
-- sms-copy-writing: under 160 characters hard limit, include business name, outcome-focused
-- call-script-writing: must have three labeled sections — opening, if-yes, close
-- proposal-summary-writing: one page, references QA scores as proof of quality
-- before-after-framing: references the specific topProblems from the audit
-
-FORBIDDEN — do not do any of the following:
-- Send outreach (approved flags initialize to false — operator approves each channel separately)
-- Mark any channel as approved=true
-- Make design decisions
-- Modify the build
-
-Return this exact JSON shape:
-{
-  "pitchEmail": "string — full cold email under 200 words",
-  "sms": "string — under 160 characters",
-  "callScript": "string — opening, if-yes, close",
-  "proposalSummary": "string — one page proposal",
-  "beforeAfterFraming": "string — before/after comparison text",
-  "approved": { "email": false, "sms": false, "callScript": false, "proposal": false }
-}`,
-      messages: [{
-        role: "user",
-        content: `Generate a sales package for this build:\n\n${buildSpec.slice(0, 3000)}`,
-      }],
-    });
-
-    const raw = salesMsg.content[0].type === "text" ? salesMsg.content[0].text : "{}";
-    const salesPackage = JSON.parse(raw);
-    const salesCost = calcCost(salesMsg.usage.input_tokens, salesMsg.usage.output_tokens);
-
-    await updateBuildState(buildId, {
-      workflowState: "OUTREACH_DRAFTED",
-      salesPackage,
-      totalCost: build.totalCost + prevCost + salesCost,
-    });
-
-    await logBuildEvent({
-      agent: "sales-agent",
-      action: "OUTREACH_DRAFTED",
-      tier: build.tier,
-      cost: salesCost,
-      build_id: buildId,
-      client_name: build.clientName,
-      status: "OUTREACH_DRAFTED",
-    });
-  } catch {
-    // Sales package failure is non-critical
+    await updateBuildState(buildId, { workflowState: "FAILED", errorMessage: (err as Error).message });
   }
 }

@@ -35,12 +35,22 @@ export interface ActivityEntry {
 // ── Workflow States ─────────────────────────────────────────────────────────
 
 export type WorkflowState =
+  // ── Orchestrator v2 states (primary) ────────────────────────────────────
   | "URL_RECEIVED"
-  | "AUDITING_WEBSITE"
-  | "SCORING_OPPORTUNITY"
+  | "SCRAPING_SITE"
+  | "GENERATING_AUDIT"
   | "GENERATING_DIRECTIONS"
   | "WAITING_FOR_APPROVAL"
   | "LOCKING_BUILD_SPEC"
+  | "MOCK_BUILD_RUNNING"
+  | "QA_RUNNING"
+  | "PREVIEW_READY"
+  | "COMPLETE"
+  | "FAILED"
+  | "STALLED"
+  // ── Legacy states (kept for backward compat) ─────────────────────────────
+  | "AUDITING_WEBSITE"
+  | "SCORING_OPPORTUNITY"
   | "READY_FOR_EXECUTOR"
   | "EXECUTOR_QUEUED"
   | "EXECUTOR_RUNNING"
@@ -48,23 +58,20 @@ export type WorkflowState =
   | "EXECUTOR_COMPLETE"
   | "EXECUTOR_FAILED"
   | "QA_IN_PROGRESS"
-  | "PREVIEW_READY"
   | "OUTREACH_DRAFTED"
   | "WAITING_FOR_SEND_APPROVAL"
-  | "COMPLETE"
   | "ERROR";
 
 export const WORKFLOW_STEPS: { state: WorkflowState; label: string }[] = [
-  { state: "URL_RECEIVED",          label: "URL Received" },
-  { state: "AUDITING_WEBSITE",      label: "Auditing Website" },
-  { state: "SCORING_OPPORTUNITY",   label: "Scoring Opportunity" },
-  { state: "GENERATING_DIRECTIONS", label: "Generating Directions" },
-  { state: "WAITING_FOR_APPROVAL",  label: "Awaiting Approval" },
-  { state: "LOCKING_BUILD_SPEC",    label: "Locking Spec" },
-  { state: "BUILDING_MOCKUP",       label: "Building" },
-  { state: "QA_IN_PROGRESS",        label: "QA Scoring" },
-  { state: "PREVIEW_READY",         label: "Preview Ready" },
-  { state: "OUTREACH_DRAFTED",      label: "Outreach Drafted" },
+  { state: "URL_RECEIVED",          label: "Received" },
+  { state: "SCRAPING_SITE",         label: "Scraping" },
+  { state: "GENERATING_AUDIT",      label: "Audit" },
+  { state: "GENERATING_DIRECTIONS", label: "Directions" },
+  { state: "WAITING_FOR_APPROVAL",  label: "Approval" },
+  { state: "LOCKING_BUILD_SPEC",    label: "Locking" },
+  { state: "MOCK_BUILD_RUNNING",    label: "Building" },
+  { state: "QA_RUNNING",            label: "QA" },
+  { state: "PREVIEW_READY",         label: "Preview" },
   { state: "COMPLETE",              label: "Complete" },
 ];
 

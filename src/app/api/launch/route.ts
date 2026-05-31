@@ -5,6 +5,27 @@ import { logBuildEvent, createBuildRecord, updateBuildState } from "@/lib/supaba
 import { randomUUID } from "crypto";
 import type { AuditObject, Direction, ClientAsset } from "@/types/models";
 
+const TIER_TIMEOUTS = {
+  firecrawl: 20_000,
+  audit:     45_000,
+  directions: 90_000,
+};
+
+function raceTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
+function isTier1Renovation(tier?: string): boolean {
+  if (!tier) return false;
+  const t = tier.toLowerCase();
+  return t.includes("tier 1") || t.includes("renovation");
+}
+
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
@@ -92,12 +113,20 @@ export async function POST(req: NextRequest) {
   const buildId = randomUUID();
   const encoder = new TextEncoder();
 
+  const fastMode = isTier1Renovation(tier);
+
   const stream = new ReadableStream({
     async start(controller) {
       let totalCost = 0;
+      const pipelineStart = Date.now();
 
       function send(agent: string, action: string, detail: string, extra: Record<string, unknown> = {}) {
-        const payload = JSON.stringify({ buildId, agent, action, detail, ts: new Date().toISOString(), ...extra });
+        const payload = JSON.stringify({
+          buildId, agent, action, detail,
+          ts: new Date().toISOString(),
+          elapsedMs: Date.now() - pipelineStart,
+          ...extra,
+        });
         controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         logBuildEvent({ agent, action, tier, build_id: buildId, client_name: clientName, status: action });
       }
@@ -111,7 +140,9 @@ export async function POST(req: NextRequest) {
           clientId, clientSlug, brandNotes,
           clientAssets: clientAssets?.filter(a => a.approvalStatus === "approved" && !a.containsMinor),
         });
-        send("mission-control", "URL_RECEIVED", `Build ${buildId} started for ${url}`);
+        send("mission-control", "URL_RECEIVED", `Build ${buildId} started for ${url}`, {
+          buildMode: fastMode ? "FAST_RENOVATION" : "STANDARD",
+        });
 
         // ── Stage 1: Firecrawl ─────────────────────────────────────────────
         await updateBuildState(buildId, { workflowState: "AUDITING_WEBSITE" });
@@ -120,7 +151,7 @@ export async function POST(req: NextRequest) {
         let markdown = "";
         let pageTitle = "";
         try {
-          const scraped = await scrapeUrl(url);
+          const scraped = await raceTimeout(scrapeUrl(url), TIER_TIMEOUTS.firecrawl, "Firecrawl");
           markdown = scraped.markdown.slice(0, 10000);
           pageTitle = scraped.title;
           send("scout", "scrape_complete", `${pageTitle || url} — ${markdown.length} chars captured`);
@@ -185,14 +216,28 @@ Return ONLY valid JSON. No markdown. No explanation.`,
 
         // ── Stage 3: Two creative directions ──────────────────────────────
         await updateBuildState(buildId, { workflowState: "GENERATING_DIRECTIONS" });
-        send("designer", "GENERATING_DIRECTIONS", "Generating two creative directions...");
+        send("designer", "GENERATING_DIRECTIONS", fastMode
+          ? "Fast renovation mode — generating compact direction cards..."
+          : "Generating two creative directions...");
 
         const effectiveTier = tier || `${auditObject.recommendedTier} (auto-routed)`;
 
-        const directionsMsg = await anthropic.messages.create({
-          model: MODEL,
-          max_tokens: 8192,
-          system: `You are the Mission Control Visual Director (Agent 04). Return ONLY a valid JSON object with two complete creative directions. No markdown code blocks, no explanation.
+        const fastDirectionsSystem = `You are the Mission Control Visual Director (Agent 04 — FAST RENOVATION MODE). Return ONLY a valid JSON object with two compact creative directions. No markdown code blocks, no explanation.
+
+The operator needs to quickly pick a direction. Keep EVERY artifact field concise — under 60 words each. Prioritize clarity and decision-speed over exhaustive detail.
+
+RULES:
+- gradientType must be one of: Deep Trust, Warm Residential, Storm-to-Safety, Industrial Precision, Clean Modern White, Premium Black Glass
+- heroLayout must be one of: Layout A (Left Copy Right Visual), Layout B (Split Editorial), Layout C (Layered Visual), Layout D (Cinematic Full-Width), Layout E (3D Object)
+- Direction A = Safe Premium (elevate existing identity)
+- Direction B = Bold Premium (distinctive, stand-apart strategy)
+- Each direction must be genuinely different — not color variations of the same idea
+- buildSpec: write a focused 120-word renovation brief covering the 3-5 key changes and page structure
+
+Return this exact JSON shape:
+{"directionA":{"id":"A","name":"string","concept":"string","heroHeadline":"string","heroSubheadline":"string","visualFeel":"string","keyDifferentiator":"string","gradientType":"string","heroLayout":"string","artifacts":{"designSystem":"string","creativeDirection":"string","antiSlopRules":"string","copyBrief":"string","motionPlan":"string","buildSpec":"string"}},"directionB":{"id":"B","name":"string","concept":"string","heroHeadline":"string","heroSubheadline":"string","visualFeel":"string","keyDifferentiator":"string","gradientType":"string","heroLayout":"string","artifacts":{"designSystem":"string","creativeDirection":"string","antiSlopRules":"string","copyBrief":"string","motionPlan":"string","buildSpec":"string"}}}`;
+
+        const fullDirectionsSystem = `You are the Mission Control Visual Director (Agent 04). Return ONLY a valid JSON object with two complete creative directions. No markdown code blocks, no explanation.
 
 SKILL ROUTING MATRIX — your allowed skills only:
 - direction-a-generation: safe premium — elevated version of existing identity
@@ -223,49 +268,16 @@ Direction A = Safe Premium: elevated version of their existing identity
 Direction B = Bold Premium: distinctive approach that stands them apart
 
 Return this exact JSON shape:
-{
-  "directionA": {
-    "id": "A",
-    "name": "string — 3-5 words",
-    "concept": "string — 2 sentences describing the creative concept",
-    "heroHeadline": "string — the actual headline for the hero section",
-    "heroSubheadline": "string — the supporting line",
-    "visualFeel": "string — 4-5 adjectives describing the visual tone",
-    "keyDifferentiator": "string — one sentence on what makes this direction distinctive",
-    "gradientType": "string — which gradient from: Deep Trust, Warm Residential, Storm-to-Safety, Industrial Precision, Clean Modern White, Premium Black Glass",
-    "heroLayout": "string — one of: Layout A (Left Copy Right Visual), Layout B (Split Editorial), Layout C (Layered Visual), Layout D (Cinematic Full-Width), Layout E (3D Object)",
-    "artifacts": {
-      "designSystem": "string — markdown: colors (hex values), typography, spacing rules",
-      "creativeDirection": "string — markdown: full creative brief, hero description, 3 key sections",
-      "antiSlopRules": "string — markdown: 5-8 specific banned patterns for this build",
-      "copyBrief": "string — markdown: voice, headline formula, CTA copy, forbidden phrases",
-      "motionPlan": "string — markdown: tier-appropriate motion for each section",
-      "buildSpec": "string — markdown: full build spec per the Mission Control build spec template"
-    }
-  },
-  "directionB": {
-    "id": "B",
-    "name": "string",
-    "concept": "string",
-    "heroHeadline": "string",
-    "heroSubheadline": "string",
-    "visualFeel": "string",
-    "keyDifferentiator": "string",
-    "gradientType": "string",
-    "heroLayout": "string",
-    "artifacts": {
-      "designSystem": "string",
-      "creativeDirection": "string",
-      "antiSlopRules": "string",
-      "copyBrief": "string",
-      "motionPlan": "string",
-      "buildSpec": "string"
-    }
-  }
-}`,
-          messages: [{
-            role: "user",
-            content: `Client URL: ${url}
+{"directionA":{"id":"A","name":"string — 3-5 words","concept":"string — 2 sentences","heroHeadline":"string","heroSubheadline":"string","visualFeel":"string — 4-5 adjectives","keyDifferentiator":"string — one sentence","gradientType":"string","heroLayout":"string","artifacts":{"designSystem":"string — colors (hex), typography, spacing","creativeDirection":"string — full creative brief","antiSlopRules":"string — 5-8 specific banned patterns","copyBrief":"string — voice, headline formula, CTA, forbidden phrases","motionPlan":"string — motion per section","buildSpec":"string — full build spec"}},"directionB":{"id":"B","name":"string","concept":"string","heroHeadline":"string","heroSubheadline":"string","visualFeel":"string","keyDifferentiator":"string","gradientType":"string","heroLayout":"string","artifacts":{"designSystem":"string","creativeDirection":"string","antiSlopRules":"string","copyBrief":"string","motionPlan":"string","buildSpec":"string"}}}`;
+
+        const directionsMsg = await raceTimeout(
+          anthropic.messages.create({
+            model: MODEL,
+            max_tokens: fastMode ? 2500 : 8192,
+            system: fastMode ? fastDirectionsSystem : fullDirectionsSystem,
+            messages: [{
+              role: "user",
+              content: `Client URL: ${url}
 Client Name: ${clientName || auditObject.clientNameExtracted || "not provided"}
 Industry: ${auditObject.industryExtracted || "not detected"}
 Location: ${auditObject.locationExtracted || "not detected"}
@@ -279,12 +291,15 @@ Audit Results:
 - Top Problems: ${auditObject.topProblems.join("; ")}
 - Upgrade Angle: ${auditObject.upgradeAngle}
 
-Scraped content (first 6000 chars):
-${markdown.slice(0, 6000) || "[scrape unavailable]"}
+Scraped content (first ${fastMode ? 3000 : 6000} chars):
+${markdown.slice(0, fastMode ? 3000 : 6000) || "[scrape unavailable]"}
 
-Return ONLY valid JSON. Two complete creative directions. Make them genuinely distinct — not variations of the same idea.`,
-          }],
-        });
+Return ONLY valid JSON. Two${fastMode ? " compact" : " complete"} creative directions. Make them genuinely distinct — not variations of the same idea.`,
+            }],
+          }),
+          TIER_TIMEOUTS.directions,
+          "Directions generation"
+        );
 
         let directionA: Direction;
         let directionB: Direction;

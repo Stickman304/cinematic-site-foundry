@@ -3,11 +3,24 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 const BUILD_TYPES = [
-  { id: "renovation",    label: "RENOVATION",    tier: "TIER 1 — RENOVATION" },
-  { id: "new_build",     label: "NEW BUILD",     tier: "TIER 2 — NEW BUILD"  },
-  { id: "premium",       label: "PREMIUM",       tier: "TIER 3 — ADVANCED"   },
-  { id: "outreach_demo", label: "OUTREACH DEMO", tier: "TIER 1 — RENOVATION" },
-  { id: "ugc_campaign",  label: "UGC CAMPAIGN",  tier: "TIER 1 — RENOVATION" },
+  {
+    id: "renovation",
+    label: "FAST RENOVATION",
+    tier: "TIER 1 — FAST RENOVATION",
+    hint: "Fix an existing site. URL required.",
+  },
+  {
+    id: "new_website",
+    label: "NEW WEBSITE",
+    tier: "TIER 2 — NEW WEBSITE",
+    hint: "Build from scratch. URL optional.",
+  },
+  {
+    id: "premium_redesign",
+    label: "PREMIUM REDESIGN",
+    tier: "TIER 2 — PREMIUM REDESIGN",
+    hint: "Full redesign with stronger design system.",
+  },
 ];
 
 export function CommandBar() {
@@ -36,31 +49,37 @@ export function CommandBar() {
   }
 
   async function handleFire() {
-    if (!url.trim() || firing) return;
+    const selected = BUILD_TYPES.find(t => t.id === buildType)!;
+    const needsUrl = buildType === "renovation";
+    if (needsUrl && !url.trim()) {
+      setFireError("URL is required for renovation builds.");
+      return;
+    }
+    if (firing) return;
+
     setFiring(true);
     setFireError("");
 
     let validatedUrl = url.trim();
-    if (!validatedUrl.startsWith("http://") && !validatedUrl.startsWith("https://")) {
+    if (validatedUrl && !validatedUrl.startsWith("http://") && !validatedUrl.startsWith("https://")) {
       validatedUrl = `https://${validatedUrl}`;
     }
 
-    const tier = BUILD_TYPES.find(t => t.id === buildType)?.tier ?? "TIER 2 — NEW BUILD";
-
     try {
-      const res = await fetch("/api/launch", {
+      const res = await fetch("/api/orchestrator/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url: validatedUrl,
-          tier,
-          notes: notes.trim() || undefined,
+          url: validatedUrl || undefined,
+          buildType: selected.id,
+          tier: selected.tier,
+          operatorDirections: notes.trim() || undefined,
         }),
       });
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? "Pipeline failed to start");
+        throw new Error((body as { error?: string }).error ?? "Build failed to start");
       }
 
       const buildId = res.headers.get("X-Build-ID") ?? "";
@@ -70,6 +89,9 @@ export function CommandBar() {
       setFiring(false);
     }
   }
+
+  const selected = BUILD_TYPES.find(t => t.id === buildType)!;
+  const canFire = buildType !== "renovation" || url.trim().length > 0;
 
   if (collapsed) {
     return (
@@ -99,7 +121,7 @@ export function CommandBar() {
         {/* Header row */}
         <div className="flex items-center justify-between">
           <span className="font-display text-base" style={{ color: "var(--amber)" }}>
-            COMMAND BAR — DROP ANY URL TO START A BUILD
+            COMMAND BAR
           </span>
           <button
             onClick={() => setCollapsed(true)}
@@ -110,46 +132,47 @@ export function CommandBar() {
           </button>
         </div>
 
-        {/* Row 1: URL + Build type */}
+        {/* Tier selection */}
+        <div className="flex gap-1.5 flex-wrap">
+          {BUILD_TYPES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setBuildType(t.id)}
+              className="px-3 py-2 rounded font-display text-xs transition-all"
+              style={{
+                background: buildType === t.id ? "var(--amber-glow)" : "var(--bg-elevated)",
+                border: `1px solid ${buildType === t.id ? "var(--amber)" : "var(--border)"}`,
+                color: buildType === t.id ? "var(--amber)" : "var(--text-muted)",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+          <span className="ml-2 font-mono text-[10px] self-center" style={{ color: "var(--text-dim)" }}>
+            {selected.hint}
+          </span>
+        </div>
+
+        {/* URL + Notes row */}
         <div className="flex flex-col md:flex-row gap-3">
           <input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Drop any URL here to start a build..."
+            placeholder={buildType === "renovation" ? "Website URL to renovate (required)" : "Website URL (optional)"}
             className="flex-1 px-4 py-2.5 rounded font-mono text-sm outline-none"
             style={{
               background: "var(--bg-base)",
               color: "var(--text-primary)",
-              border: "1px solid var(--border)",
+              border: `1px solid ${buildType === "renovation" && !url.trim() && fireError ? "var(--red, #e53e3e)" : "var(--border)"}`,
               caretColor: "var(--amber)",
             }}
             onKeyDown={(e) => e.key === "Enter" && handleFire()}
           />
-          <div className="flex gap-1.5 flex-wrap">
-            {BUILD_TYPES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setBuildType(t.id)}
-                className="px-3 py-2 rounded font-display text-xs transition-all"
-                style={{
-                  background: buildType === t.id ? "var(--amber-glow)" : "var(--bg-elevated)",
-                  border: `1px solid ${buildType === t.id ? "var(--amber)" : "var(--border)"}`,
-                  color: buildType === t.id ? "var(--amber)" : "var(--text-muted)",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: Notes + Uploads + Fire */}
-        <div className="flex flex-col md:flex-row gap-3 items-stretch">
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add direction for the agents..."
+            placeholder="Brand direction, tone, style notes, anything for the orchestrator..."
             rows={2}
             className="flex-1 px-4 py-2.5 rounded font-mono text-xs outline-none resize-none"
             style={{
@@ -159,7 +182,10 @@ export function CommandBar() {
               caretColor: "var(--amber)",
             }}
           />
+        </div>
 
+        {/* Asset uploads + Fire */}
+        <div className="flex flex-col md:flex-row gap-3 items-stretch">
           {/* Logo upload */}
           <div className="flex flex-col gap-1.5">
             <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogo} />
@@ -177,7 +203,6 @@ export function CommandBar() {
               LOGO
             </button>
 
-            {/* Photos upload */}
             <input ref={photosRef} type="file" multiple accept="image/*" className="hidden" onChange={handlePhotos} />
             <button
               onClick={() => photosRef.current?.click()}
@@ -197,21 +222,21 @@ export function CommandBar() {
           </div>
 
           {/* FIRE button + error */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 ml-auto">
             <button
               onClick={handleFire}
-              disabled={firing || !url}
+              disabled={firing || !canFire}
               className="px-8 py-2 rounded-lg font-display text-2xl tracking-widest transition-all"
               style={{
-                background: firing ? "var(--bg-elevated)" : url ? "var(--amber)" : "var(--bg-elevated)",
-                color: url && !firing ? "#000" : "var(--text-dim)",
-                boxShadow: url && !firing ? "0 0 24px rgba(200,151,58,0.35)" : "none",
-                cursor: firing || !url ? "not-allowed" : "pointer",
-                minWidth: 140,
+                background: firing ? "var(--bg-elevated)" : canFire ? "var(--amber)" : "var(--bg-elevated)",
+                color: canFire && !firing ? "#000" : "var(--text-dim)",
+                boxShadow: canFire && !firing ? "0 0 24px rgba(200,151,58,0.35)" : "none",
+                cursor: firing || !canFire ? "not-allowed" : "pointer",
+                minWidth: 160,
                 opacity: firing ? 0.6 : 1,
               }}
             >
-              {firing ? "⚡ FIRING..." : "FIRE AGENTS"}
+              {firing ? "⚡ LAUNCHING..." : "FIRE AGENTS"}
             </button>
             {fireError && (
               <div className="font-mono text-xs text-center py-1" style={{ color: "var(--red, #e53e3e)" }}>

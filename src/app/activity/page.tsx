@@ -1,54 +1,176 @@
 "use client";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import type { BuildRecord, WorkflowState, QAScorecardDimension } from "@/types/models";
 import { WORKFLOW_STEPS } from "@/types/models";
 
-// ── Workflow progress bar ─────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-function WorkflowProgress({ state }: { state: WorkflowState }) {
-  const currentIdx = WORKFLOW_STEPS.findIndex(s => s.state === state);
+const STALL_THRESHOLD_MS = 90_000;
+
+const TERMINAL_STATES: WorkflowState[] = [
+  "WAITING_FOR_APPROVAL", "COMPLETE", "OUTREACH_DRAFTED",
+  "PREVIEW_READY", "ERROR", "EXECUTOR_FAILED",
+];
+
+function isTerminal(state: WorkflowState) {
+  return TERMINAL_STATES.includes(state);
+}
+
+function pollInterval(state: WorkflowState): number {
+  return isTerminal(state) ? 5000 : 2000;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatElapsed(secs: number): string {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${s}s`;
+}
+
+function derivedStatusLabel(state: WorkflowState, stalled: boolean): string {
+  if (stalled) return "STALLED";
+  if (state === "WAITING_FOR_APPROVAL") return "WAITING_FOR_APPROVAL";
+  if (state === "ERROR" || state === "EXECUTOR_FAILED") return "FAILED";
+  if (state === "COMPLETE" || state === "OUTREACH_DRAFTED" || state === "PREVIEW_READY") return "COMPLETE";
+  return "RUNNING";
+}
+
+function statusColor(label: string): string {
+  switch (label) {
+    case "STALLED": return "var(--red, #e53e3e)";
+    case "WAITING_FOR_APPROVAL": return "var(--amber)";
+    case "FAILED": return "var(--red, #e53e3e)";
+    case "COMPLETE": return "var(--green)";
+    default: return "var(--text-muted)";
+  }
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function SummaryCell({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div className="flex items-center gap-0 overflow-x-auto pb-2">
-      {WORKFLOW_STEPS.map((step, i) => {
-        const done = i < currentIdx;
-        const active = i === currentIdx;
-        const error = state === "ERROR" && i === currentIdx;
-        return (
-          <div key={step.state} className="flex items-center shrink-0">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all"
-                style={{
-                  background: error ? "var(--red)" : done ? "var(--green)" : active ? "var(--amber)" : "var(--bg-elevated)",
-                  color: (done || active || error) ? "#030407" : "var(--text-dim)",
-                  boxShadow: active ? "0 0 12px var(--amber-glow)" : "none",
-                }}
-              >
-                {done ? "✓" : i + 1}
-              </div>
-              <span
-                className="font-mono text-[9px] text-center leading-tight max-w-[60px]"
-                style={{ color: active ? "var(--amber)" : done ? "var(--green)" : "var(--text-dim)" }}
-              >
-                {step.label}
-              </span>
-            </div>
-            {i < WORKFLOW_STEPS.length - 1 && (
-              <div
-                className="h-0.5 w-6 mx-1 shrink-0"
-                style={{ background: done ? "var(--green)" : "var(--border)" }}
-              />
-            )}
-          </div>
-        );
-      })}
+    <div className="flex flex-col gap-0.5">
+      <div className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>{label}</div>
+      <div className="font-mono text-xs font-bold truncate" style={{ color: valueColor ?? "var(--text-primary)" }}>{value}</div>
     </div>
   );
 }
 
-// ── Audit results panel ───────────────────────────────────────────────────
+function RunSummaryBanner({
+  build, elapsedSec, stalled,
+}: {
+  build: BuildRecord;
+  elapsedSec: number;
+  stalled: boolean;
+}) {
+  const state = build.workflowState;
+  const label = derivedStatusLabel(state, stalled);
+  const color = statusColor(label);
+  const pulsing = label === "RUNNING";
+
+  return (
+    <div className="rounded-lg border p-4 flex flex-col gap-3" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="font-display text-sm" style={{ color: "var(--amber)" }}>RUN SUMMARY</div>
+        <div
+          className="font-mono text-xs font-bold px-3 py-1 rounded border flex items-center gap-2"
+          style={{ color, borderColor: color }}
+        >
+          {pulsing && (
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ background: "var(--text-muted)" }}
+            />
+          )}
+          {label}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+        <SummaryCell label="URL" value={build.url?.replace(/^https?:\/\//, "") ?? "—"} />
+        <SummaryCell label="BUILD TYPE" value={build.tier ?? "renovation"} />
+        <SummaryCell label="EXECUTOR" value={(build.executorType ?? "mock").toUpperCase()} />
+        <SummaryCell label="ELAPSED" value={formatElapsed(elapsedSec)} />
+        <SummaryCell label="WORKFLOW STATE" value={state} />
+        <SummaryCell
+          label="DIRECTIONS"
+          value={build.directionA && build.directionB ? "✓ READY" : "PENDING"}
+          valueColor={build.directionA && build.directionB ? "var(--green)" : undefined}
+        />
+        <SummaryCell
+          label="QA SCORECARD"
+          value={build.qaScorecard ? "✓ READY" : "PENDING"}
+          valueColor={build.qaScorecard ? "var(--green)" : undefined}
+        />
+        <SummaryCell
+          label="SALES PACKAGE"
+          value={build.salesPackage ? "✓ READY" : "PENDING"}
+          valueColor={build.salesPackage ? "var(--green)" : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Workflow progress bar ─────────────────────────────────────────────────────
+
+function WorkflowProgress({ state, elapsedSec }: { state: WorkflowState; elapsedSec: number }) {
+  const currentIdx = WORKFLOW_STEPS.findIndex(s => s.state === state);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-0 overflow-x-auto pb-2">
+        {WORKFLOW_STEPS.map((step, i) => {
+          const done = i < currentIdx;
+          const active = i === currentIdx;
+          const error = (state === "ERROR" || state === "EXECUTOR_FAILED") && i === currentIdx;
+          return (
+            <div key={step.state} className="flex items-center shrink-0">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all"
+                  style={{
+                    background: error ? "var(--red, #e53e3e)" : done ? "var(--green)" : active ? "var(--amber)" : "var(--bg-elevated)",
+                    color: (done || active || error) ? "#030407" : "var(--text-dim)",
+                    boxShadow: active && !error ? "0 0 12px var(--amber-glow)" : "none",
+                  }}
+                >
+                  {done ? "✓" : i + 1}
+                </div>
+                <span
+                  className="font-mono text-[9px] text-center leading-tight max-w-[60px]"
+                  style={{ color: active ? "var(--amber)" : done ? "var(--green)" : "var(--text-dim)" }}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {i < WORKFLOW_STEPS.length - 1 && (
+                <div
+                  className="h-0.5 w-6 mx-1 shrink-0"
+                  style={{ background: done ? "var(--green)" : "var(--border)" }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Current step detail */}
+      {currentIdx >= 0 && (
+        <div className="flex items-center gap-2 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+          <span style={{ color: "var(--amber)" }}>▶</span>
+          <span>Currently: <span style={{ color: "var(--text-primary)" }}>{WORKFLOW_STEPS[currentIdx]?.label}</span></span>
+          <span style={{ color: "var(--text-dim)" }}>·</span>
+          <span style={{ color: "var(--text-dim)" }}>{formatElapsed(elapsedSec)} elapsed</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Audit results panel ───────────────────────────────────────────────────────
 
 function ScoreCircle({ value, label, color }: { value: number; label: string; color: string }) {
   const pct = Math.min(100, Math.max(0, value));
@@ -90,7 +212,7 @@ function AuditPanel({ build }: { build: BuildRecord }) {
         <div className="font-mono text-xs font-bold" style={{ color: "var(--text-muted)" }}>TOP PROBLEMS</div>
         {a.topProblems.map((p, i) => (
           <div key={i} className="font-mono text-xs flex gap-2" style={{ color: "var(--text-muted)" }}>
-            <span style={{ color: "var(--red)" }}>✗</span> {p}
+            <span style={{ color: "var(--red, #e53e3e)" }}>✗</span> {p}
           </div>
         ))}
       </div>
@@ -98,7 +220,7 @@ function AuditPanel({ build }: { build: BuildRecord }) {
         <div className="font-mono text-[10px] mb-1" style={{ color: "var(--text-dim)" }}>UPGRADE ANGLE</div>
         <div className="font-mono text-xs" style={{ color: "var(--text-primary)" }}>{a.upgradeAngle}</div>
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <div className="rounded px-3 py-1.5 font-mono text-xs" style={{ background: "var(--bg-elevated)" }}>
           <span style={{ color: "var(--text-dim)" }}>Recommended: </span>
           <span style={{ color: "var(--amber)", fontWeight: 700 }}>{a.recommendedTier?.toUpperCase()}</span>
@@ -120,13 +242,10 @@ function AuditPanel({ build }: { build: BuildRecord }) {
   );
 }
 
-// ── Direction cards ───────────────────────────────────────────────────────
+// ── Direction cards ───────────────────────────────────────────────────────────
 
 function DirectionCard({
-  direction,
-  approved,
-  waiting,
-  onApprove,
+  direction, approved, waiting, onApprove,
 }: {
   direction: NonNullable<BuildRecord["directionA"]>;
   approved: boolean;
@@ -199,7 +318,6 @@ function DirectionCard({
           <span>{direction.heroLayout?.split("(")[0].trim()}</span>
         </div>
 
-        {/* Expandable artifacts */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="font-mono text-[10px] text-left transition-opacity hover:opacity-70"
@@ -244,7 +362,7 @@ function DirectionCard({
   );
 }
 
-// ── QA Scorecard ─────────────────────────────────────────────────────────
+// ── QA Scorecard ─────────────────────────────────────────────────────────────
 
 const QA_MINIMUMS: Record<string, number> = {
   visualTaste: 70, mobileExperience: 80, ctaStrength: 80, copyQuality: 70,
@@ -269,7 +387,7 @@ function QAScorecardPanel({ qa }: { qa: BuildRecord["qaScorecard"] }) {
           className="font-display text-2xl px-4 py-1 rounded"
           style={{
             background: qa.pass ? "rgba(46,204,113,0.1)" : "rgba(231,76,60,0.1)",
-            color: qa.pass ? "var(--green)" : "var(--red)",
+            color: qa.pass ? "var(--green)" : "var(--red, #e53e3e)",
             border: `1px solid ${qa.pass ? "rgba(46,204,113,0.3)" : "rgba(231,76,60,0.3)"}`,
           }}
         >
@@ -287,11 +405,11 @@ function QAScorecardPanel({ qa }: { qa: BuildRecord["qaScorecard"] }) {
               <div className="flex-1 rounded-full overflow-hidden h-1.5" style={{ background: "var(--bg-elevated)" }}>
                 <div
                   className="h-full rounded-full transition-all"
-                  style={{ width: `${dim.score}%`, background: pass ? "var(--green)" : "var(--red)" }}
+                  style={{ width: `${dim.score}%`, background: pass ? "var(--green)" : "var(--red, #e53e3e)" }}
                 />
               </div>
-              <div className="font-mono text-xs w-8 text-right" style={{ color: pass ? "var(--green)" : "var(--red)" }}>{dim.score}</div>
-              <div className="font-mono text-[10px] w-4" style={{ color: pass ? "var(--green)" : "var(--red)" }}>{pass ? "✓" : "✗"}</div>
+              <div className="font-mono text-xs w-8 text-right" style={{ color: pass ? "var(--green)" : "var(--red, #e53e3e)" }}>{dim.score}</div>
+              <div className="font-mono text-[10px] w-4" style={{ color: pass ? "var(--green)" : "var(--red, #e53e3e)" }}>{pass ? "✓" : "✗"}</div>
             </div>
           );
         })}
@@ -309,7 +427,7 @@ function QAScorecardPanel({ qa }: { qa: BuildRecord["qaScorecard"] }) {
   );
 }
 
-// ── Sales Package ─────────────────────────────────────────────────────────
+// ── Sales Package ─────────────────────────────────────────────────────────────
 
 function SalesPackagePanel({ buildId, sales, onApprove }: {
   buildId: string;
@@ -388,7 +506,7 @@ function SalesPackagePanel({ buildId, sales, onApprove }: {
   );
 }
 
-// ── Executor panel ────────────────────────────────────────────────────────
+// ── Executor panel ────────────────────────────────────────────────────────────
 
 function ExecutorPanel({ build, onBuildComplete }: { build: BuildRecord; onBuildComplete: () => void }) {
   const [open, setOpen] = useState(false);
@@ -462,7 +580,7 @@ function ExecutorPanel({ build, onBuildComplete }: { build: BuildRecord; onBuild
                   className="font-mono text-xs px-2 py-0.5 rounded"
                   style={{
                     background: result.status === "complete" ? "rgba(46,204,113,0.1)" : "rgba(231,76,60,0.1)",
-                    color: result.status === "complete" ? "var(--green)" : "var(--red)",
+                    color: result.status === "complete" ? "var(--green)" : "var(--red, #e53e3e)",
                   }}
                 >
                   {result.status.toUpperCase()}
@@ -484,7 +602,7 @@ function ExecutorPanel({ build, onBuildComplete }: { build: BuildRecord; onBuild
                   <div className="font-mono text-[10px] font-bold" style={{ color: "var(--text-dim)" }}>FILES CHANGED ({result.files.length})</div>
                   {result.files.slice(0, 10).map((f, i) => (
                     <div key={i} className="font-mono text-[10px] flex gap-2">
-                      <span style={{ color: f.operation === "created" ? "var(--green)" : f.operation === "deleted" ? "var(--red)" : "var(--amber)" }}>
+                      <span style={{ color: f.operation === "created" ? "var(--green)" : f.operation === "deleted" ? "var(--red, #e53e3e)" : "var(--amber)" }}>
                         {f.operation === "created" ? "+" : f.operation === "deleted" ? "-" : "~"}
                       </span>
                       <span style={{ color: "var(--text-muted)" }}>{f.path}</span>
@@ -495,12 +613,12 @@ function ExecutorPanel({ build, onBuildComplete }: { build: BuildRecord; onBuild
 
               {result.errors.length > 0 && (
                 <div className="flex flex-col gap-1">
-                  <div className="font-mono text-[10px] font-bold" style={{ color: "var(--red)" }}>ERRORS</div>
+                  <div className="font-mono text-[10px] font-bold" style={{ color: "var(--red, #e53e3e)" }}>ERRORS</div>
                   {result.errors.map((e, i) => (
-                    <div key={i} className="font-mono text-[10px]" style={{ color: "var(--red)" }}>✗ {e.message}</div>
+                    <div key={i} className="font-mono text-[10px]" style={{ color: "var(--red, #e53e3e)" }}>✗ {e.message}</div>
                   ))}
                 </div>
-              )}
+          )}
             </>
           )}
         </div>
@@ -509,7 +627,7 @@ function ExecutorPanel({ build, onBuildComplete }: { build: BuildRecord; onBuild
   );
 }
 
-// ── Main activity page ────────────────────────────────────────────────────
+// ── Main activity page ────────────────────────────────────────────────────────
 
 function ActivityContent() {
   const searchParams = useSearchParams();
@@ -517,6 +635,11 @@ function ActivityContent() {
 
   const [build, setBuild] = useState<BuildRecord | null>(null);
   const [approving, setApproving] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [stalled, setStalled] = useState(false);
+  const [feedOpen, setFeedOpen] = useState(false);
+
+  const lastUpdateRef = useRef<number>(Date.now());
 
   const fetchBuild = useCallback(async () => {
     if (!buildId) return;
@@ -524,14 +647,40 @@ function ActivityContent() {
     if (!res.ok) return;
     const { build: b } = await res.json();
     setBuild(b);
+    lastUpdateRef.current = Date.now();
+    setStalled(false);
   }, [buildId]);
 
+  // Adaptive polling — fast when pipeline is active
   useEffect(() => {
     fetchBuild();
-    const interval = setInterval(fetchBuild, 5000);
+    const state = build?.workflowState ?? "URL_RECEIVED";
+    const interval = setInterval(fetchBuild, pollInterval(state));
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildId]);
+  }, [buildId, build?.workflowState]);
+
+  // Elapsed ticker
+  useEffect(() => {
+    if (!build?.createdAt) return;
+    const startMs = new Date(build.createdAt).getTime();
+    const tick = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startMs) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [build?.createdAt]);
+
+  // Stall detection — check every 10s
+  useEffect(() => {
+    const check = setInterval(() => {
+      const state = build?.workflowState ?? "URL_RECEIVED";
+      if (isTerminal(state)) { setStalled(false); return; }
+      if (Date.now() - lastUpdateRef.current > STALL_THRESHOLD_MS) {
+        setStalled(true);
+      }
+    }, 10_000);
+    return () => clearInterval(check);
+  }, [build?.workflowState]);
 
   async function handleApprove(direction: "A" | "B") {
     if (!buildId || approving) return;
@@ -545,26 +694,20 @@ function ActivityContent() {
     setApproving(false);
   }
 
-  async function handleSalesApprove(channel: string) {
-    if (!buildId) return;
-    await fetch("/api/build", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ buildId, channel }),
-    });
-    await fetchBuild();
-  }
-
-  const state = build?.workflowState ?? "URL_RECEIVED";
+  const state: WorkflowState = build?.workflowState ?? "URL_RECEIVED";
+  const isError = state === "ERROR" || state === "EXECUTOR_FAILED";
+  const directionsReady = !!(build?.directionA && build?.directionB);
+  const awaitingApproval = state === "WAITING_FOR_APPROVAL";
 
   return (
-    <div className="p-6 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+    <div className="p-6 flex flex-col gap-4 max-w-7xl mx-auto w-full">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="font-display text-3xl" style={{ color: "var(--amber)" }}>MISSION CONTROL — PIPELINE</div>
           <div className="font-mono text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {buildId ? `Build ${buildId.slice(0, 8)}...` : "No active build"} · 5s refresh
+            {buildId ? `Build ${buildId.slice(0, 8)}...` : "No active build"}
+            {build && ` · ${pollInterval(state) / 1000}s refresh`}
           </div>
         </div>
         {build && (
@@ -586,42 +729,102 @@ function ActivityContent() {
         </div>
       )}
 
-      {buildId && (
+      {buildId && build && (
         <>
+          {/* Run summary — primary status block */}
+          <RunSummaryBanner build={build} elapsedSec={elapsedSec} stalled={stalled} />
+
+          {/* Stall warning */}
+          {stalled && (
+            <div className="rounded-lg border px-5 py-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "rgba(231,76,60,0.07)", borderColor: "var(--red, #e53e3e)" }}>
+              <div className="font-mono text-xs" style={{ color: "var(--red, #e53e3e)" }}>
+                ⚠ No update for {Math.round(STALL_THRESHOLD_MS / 1000)}s — possible stall. The pipeline may be waiting on an external service.
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={fetchBuild}
+                  className="font-mono text-xs px-3 py-1.5 rounded border transition-all hover:opacity-80"
+                  style={{ borderColor: "var(--amber)", color: "var(--amber)" }}
+                >
+                  RETRY
+                </button>
+                <a
+                  href="/"
+                  className="font-mono text-xs px-3 py-1.5 rounded border transition-all hover:opacity-80"
+                  style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+                >
+                  CANCEL
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Error state — prominent, not hidden */}
+          {isError && (
+            <div className="rounded-lg border px-5 py-4 flex flex-col gap-2" style={{ background: "rgba(231,76,60,0.07)", borderColor: "var(--red, #e53e3e)" }}>
+              <div className="font-mono text-xs font-bold" style={{ color: "var(--red, #e53e3e)" }}>
+                ⚠ PIPELINE {state === "EXECUTOR_FAILED" ? "EXECUTOR" : ""} ERROR
+              </div>
+              {build.errorMessage && (
+                <div className="font-mono text-xs" style={{ color: "var(--red, #e53e3e)" }}>{build.errorMessage}</div>
+              )}
+              <a href="/" className="font-mono text-xs self-start" style={{ color: "var(--amber)" }}>← Start a new build</a>
+            </div>
+          )}
+
           {/* Workflow progress */}
           <div className="rounded-lg border p-5" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
-            <WorkflowProgress state={state} />
+            <WorkflowProgress state={state} elapsedSec={elapsedSec} />
           </div>
 
-          {/* Error state */}
-          {state === "ERROR" && build?.errorMessage && (
-            <div className="rounded-lg border px-5 py-4 font-mono text-xs" style={{ background: "rgba(231,76,60,0.07)", borderColor: "var(--red)", color: "var(--red)" }}>
-              ⚠ PIPELINE ERROR: {build.errorMessage}
+          {/* Directions CTA banner — shown when operator action is needed */}
+          {awaitingApproval && directionsReady && !build.approvedDirection && (
+            <div className="rounded-lg border px-5 py-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "rgba(200,151,58,0.08)", borderColor: "var(--amber)" }}>
+              <div>
+                <div className="font-display text-base" style={{ color: "var(--amber)" }}>DIRECTIONS READY — OPERATOR ACTION REQUIRED</div>
+                <div className="font-mono text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Review Direction A (safe) and Direction B (bold) below, then approve one to start the build.
+                </div>
+              </div>
+              <button
+                onClick={() => document.getElementById("directions-section")?.scrollIntoView({ behavior: "smooth" })}
+                className="font-mono text-xs px-4 py-2 rounded shrink-0 transition-all hover:opacity-80"
+                style={{ background: "var(--amber)", color: "#000", border: "none" }}
+              >
+                REVIEW & APPROVE ↓
+              </button>
             </div>
           )}
 
           {/* Audit results */}
-          {build?.auditObject && <AuditPanel build={build} />}
+          {build.auditObject && <AuditPanel build={build} />}
 
           {/* Direction approval */}
-          {build?.directionA && build?.directionB && (
-            <div className="flex flex-col gap-4">
-              <div className="font-display text-xl" style={{ color: "var(--amber)" }}>TWO CREATIVE DIRECTIONS</div>
+          {build.directionA && build.directionB && (
+            <div className="flex flex-col gap-4" id="directions-section">
+              <div className="flex items-center justify-between">
+                <div className="font-display text-xl" style={{ color: "var(--amber)" }}>TWO CREATIVE DIRECTIONS</div>
+                {awaitingApproval && !build.approvedDirection && (
+                  <div className="font-mono text-xs px-3 py-1 rounded" style={{ background: "rgba(200,151,58,0.15)", color: "var(--amber)", border: "1px solid rgba(200,151,58,0.3)" }}>
+                    CHOOSE ONE TO BUILD
+                  </div>
+                )}
+              </div>
               <div className="flex gap-4" style={{ alignItems: "stretch" }}>
                 <DirectionCard
                   direction={build.directionA}
                   approved={build.approvedDirection === "A"}
-                  waiting={state === "WAITING_FOR_APPROVAL" && !approving}
+                  waiting={awaitingApproval && !approving}
                   onApprove={() => handleApprove("A")}
                 />
                 <DirectionCard
                   direction={build.directionB}
                   approved={build.approvedDirection === "B"}
-                  waiting={state === "WAITING_FOR_APPROVAL" && !approving}
+                  waiting={awaitingApproval && !approving}
                   onApprove={() => handleApprove("B")}
                 />
               </div>
-              {state === "WAITING_FOR_APPROVAL" && (
+              {awaitingApproval && !build.approvedDirection && (
                 <div className="font-mono text-xs text-center" style={{ color: "var(--text-dim)" }}>
                   ⚡ No build starts until you approve one direction. The executor reads the locked build spec.
                 </div>
@@ -630,23 +833,35 @@ function ActivityContent() {
           )}
 
           {/* Executor panel */}
-          {build && <ExecutorPanel build={build} onBuildComplete={fetchBuild} />}
+          <ExecutorPanel build={build} onBuildComplete={fetchBuild} />
 
           {/* QA Scorecard */}
-          {build?.qaScorecard && <QAScorecardPanel qa={build.qaScorecard} />}
+          {build.qaScorecard && <QAScorecardPanel qa={build.qaScorecard} />}
 
-          {/* Sales package */}
-          {build?.salesPackage && (
-            <SalesPackagePanel
-              buildId={buildId}
-              sales={build.salesPackage}
-              onApprove={handleSalesApprove}
-            />
-          )}
-
-          {/* Activity feed */}
-          <ActivityFeed buildId={buildId} />
+          {/* Activity feed — secondary, collapsed by default */}
+          <div className="rounded-lg border overflow-hidden" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+            <button
+              onClick={() => setFeedOpen(o => !o)}
+              className="w-full px-5 py-3 flex items-center justify-between transition-opacity hover:opacity-80"
+              style={{ background: "var(--bg-elevated)" }}
+            >
+              <span className="font-mono text-xs font-bold" style={{ color: "var(--text-dim)" }}>⬡ AGENT EVENT LOG</span>
+              <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>{feedOpen ? "▲ COLLAPSE" : "▼ EXPAND"}</span>
+            </button>
+            {feedOpen && (
+              <div className="p-4">
+                <ActivityFeed buildId={buildId} />
+              </div>
+            )}
+          </div>
         </>
+      )}
+
+      {/* Build not yet loaded but buildId present */}
+      {buildId && !build && (
+        <div className="rounded-lg border px-5 py-8 text-center font-mono text-xs" style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--text-dim)" }}>
+          Loading build {buildId.slice(0, 8)}...
+        </div>
       )}
     </div>
   );

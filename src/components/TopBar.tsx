@@ -30,7 +30,7 @@ export function TopBar() {
           className="font-mono text-xs px-2 py-0.5 rounded border"
           style={{ color: "var(--amber)", borderColor: "var(--amber)" }}
         >
-          v2.0 · CLEAN ORCHESTRATOR
+          v2.0.1 · CLEAN ORCHESTRATOR
         </span>
       </div>
 

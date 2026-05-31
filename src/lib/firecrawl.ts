@@ -1,7 +1,3 @@
-if (!process.env.FIRECRAWL_API_KEY) {
-  throw new Error("FIRECRAWL_API_KEY is not set");
-}
-
 export interface ScrapeResult {
   url: string;
   title: string;
@@ -11,6 +7,9 @@ export interface ScrapeResult {
 }
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
+  if (!process.env.FIRECRAWL_API_KEY) {
+    throw new Error("FIRECRAWL_API_KEY is not set");
+  }
   // Use Firecrawl REST API directly to avoid type issues with the SDK
   const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",

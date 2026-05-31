@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const buildId = searchParams.get("buildId");
   const since = searchParams.get("since");
 
-  let query = supabaseAdmin
+  let query = getSupabaseAdmin()
     .from("behavioral_log")
     .select("*")
     .order("created_at", { ascending: true })

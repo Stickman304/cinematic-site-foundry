@@ -5,21 +5,35 @@ import type {
   ClientWithAssets, AssetType, AssetSource, AssetApprovalStatus, AllowedUse,
 } from "@/types/models";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase env vars not set");
+function getSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 }
 
-// Browser-safe client (anon key, respects RLS)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function getSupabaseAnonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+}
 
-// Server-only admin client (service key, bypasses RLS)
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : supabase;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _supabase: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _supabaseAdmin: any = null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabase(): any {
+  if (!_supabase) _supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
+  return _supabase;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabaseAdmin(): any {
+  if (!_supabaseAdmin) {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    _supabaseAdmin = serviceKey
+      ? createClient(getSupabaseUrl(), serviceKey)
+      : getSupabase();
+  }
+  return _supabaseAdmin;
+}
 
 // ── behavioral_log ──────────────────────────────────────────────────────────
 
@@ -34,12 +48,12 @@ export interface BuildLogEntry {
 }
 
 export async function logBuildEvent(entry: BuildLogEntry) {
-  const { error } = await supabaseAdmin.from("behavioral_log").insert(entry);
+  const { error } = await getSupabaseAdmin().from("behavioral_log").insert(entry);
   if (error) console.error("[supabase] log error:", error.message);
 }
 
 export async function getBuildLog(build_id: string) {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("behavioral_log")
     .select("*")
     .eq("build_id", build_id)
@@ -62,7 +76,7 @@ export async function createBuildRecord(params: {
   brandNotes?: string;
   intakeSnapshot?: Partial<Client>;
 }) {
-  const { error } = await supabaseAdmin.from("builds").insert({
+  const { error } = await getSupabaseAdmin().from("builds").insert({
     build_id: params.buildId,
     url: params.url,
     client_name: params.clientName,
@@ -110,7 +124,7 @@ export async function updateBuildState(buildId: string, patch: {
   if (patch.totalCost !== undefined) update.total_cost = patch.totalCost;
   if (patch.errorMessage !== undefined) update.error_message = patch.errorMessage;
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from("builds")
     .update(update)
     .eq("build_id", buildId);
@@ -118,7 +132,7 @@ export async function updateBuildState(buildId: string, patch: {
 }
 
 export async function getBuildRecord(buildId: string): Promise<BuildRecord | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("builds")
     .select("*")
     .eq("build_id", buildId)
@@ -223,7 +237,7 @@ export async function createClientRecord(params: {
   contactPhone?: string;
   notes?: string;
 }): Promise<Client | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from("clients")
     .insert({
       slug: params.slug,
@@ -270,7 +284,7 @@ export async function updateClientRecord(
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.active !== undefined) update.active = patch.active;
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from("clients")
     .update(update)
     .eq("id", clientId);
@@ -279,22 +293,22 @@ export async function updateClientRecord(
 
 export async function getClientRecord(clientId: string): Promise<ClientWithAssets | null> {
   const [clientRes, assetsRes, notesRes] = await Promise.all([
-    supabase.from("clients").select("*").eq("id", clientId).single(),
-    supabase.from("client_assets").select("*").eq("client_id", clientId).order("created_at", { ascending: false }),
-    supabase.from("client_intake_notes").select("*").eq("client_id", clientId).order("created_at", { ascending: false }),
+    getSupabase().from("clients").select("*").eq("id", clientId).single(),
+    getSupabase().from("client_assets").select("*").eq("client_id", clientId).order("created_at", { ascending: false }),
+    getSupabase().from("client_intake_notes").select("*").eq("client_id", clientId).order("created_at", { ascending: false }),
   ]);
 
   if (clientRes.error || !clientRes.data) return null;
 
   return {
     ...rowToClient(clientRes.data as Record<string, unknown>),
-    assets: (assetsRes.data ?? []).map(r => rowToAsset(r as Record<string, unknown>)),
-    intakeNotes: (notesRes.data ?? []).map(r => rowToNote(r as Record<string, unknown>)),
+    assets: (assetsRes.data ?? []).map((r: Record<string, unknown>) => rowToAsset(r)),
+    intakeNotes: (notesRes.data ?? []).map((r: Record<string, unknown>) => rowToNote(r)),
   };
 }
 
 export async function getClientBySlug(slug: string): Promise<Client | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("clients")
     .select("*")
     .eq("slug", slug)
@@ -304,7 +318,7 @@ export async function getClientBySlug(slug: string): Promise<Client | null> {
 }
 
 export async function listClientRecords(): Promise<Client[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("clients")
     .select("*")
     .eq("active", true)
@@ -313,13 +327,13 @@ export async function listClientRecords(): Promise<Client[]> {
     console.error("[supabase] listClientRecords error:", error.message);
     return [];
   }
-  return (data ?? []).map(r => rowToClient(r as Record<string, unknown>));
+  return (data ?? []).map((r: Record<string, unknown>) => rowToClient(r));
 }
 
 // ── client_assets table ──────────────────────────────────────────────────────
 
 export async function getClientAssets(clientId: string): Promise<ClientAsset[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("client_assets")
     .select("*")
     .eq("client_id", clientId)
@@ -328,7 +342,7 @@ export async function getClientAssets(clientId: string): Promise<ClientAsset[]> 
     console.error("[supabase] getClientAssets error:", error.message);
     return [];
   }
-  return (data ?? []).map(r => rowToAsset(r as Record<string, unknown>));
+  return (data ?? []).map((r: Record<string, unknown>) => rowToAsset(r));
 }
 
 export async function createAssetRecord(params: {
@@ -346,7 +360,7 @@ export async function createAssetRecord(params: {
   containsMinor?: boolean;
   notes?: string;
 }): Promise<ClientAsset | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from("client_assets")
     .insert({
       client_id: params.clientId,
@@ -396,7 +410,7 @@ export async function updateAssetRecord(
   if (patch.assetType !== undefined) update.asset_type = patch.assetType;
   if (patch.buildId !== undefined) update.build_id = patch.buildId;
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from("client_assets")
     .update(update)
     .eq("id", assetId);
@@ -404,7 +418,7 @@ export async function updateAssetRecord(
 }
 
 export async function deleteAssetRecord(assetId: string): Promise<{ storagePath?: string }> {
-  const { data } = await supabaseAdmin
+  const { data } = await getSupabaseAdmin()
     .from("client_assets")
     .select("storage_path")
     .eq("id", assetId)
@@ -412,7 +426,7 @@ export async function deleteAssetRecord(assetId: string): Promise<{ storagePath?
 
   const storagePath = (data as Record<string, unknown> | null)?.storage_path as string | undefined;
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from("client_assets")
     .delete()
     .eq("id", assetId);
@@ -431,19 +445,19 @@ export async function uploadClientAssetFile(
   contentType: string
 ): Promise<string> {
   const path = `${clientSlug}/${assetType}/${fileName}`;
-  const { error } = await supabaseAdmin.storage
+  const { error } = await getSupabaseAdmin().storage
     .from("client-assets")
     .upload(path, file, { contentType, upsert: true });
   if (error) throw new Error(`Upload failed: ${error.message}`);
 
-  const { data } = supabaseAdmin.storage
+  const { data } = getSupabaseAdmin().storage
     .from("client-assets")
     .getPublicUrl(path);
   return data.publicUrl;
 }
 
 export async function deleteStorageFile(storagePath: string): Promise<void> {
-  const { error } = await supabaseAdmin.storage
+  const { error } = await getSupabaseAdmin().storage
     .from("client-assets")
     .remove([storagePath]);
   if (error) console.error("[supabase] deleteStorageFile error:", error.message);
@@ -456,7 +470,7 @@ export async function addIntakeNote(params: {
   note: string;
   author?: string;
 }): Promise<ClientIntakeNote | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from("client_intake_notes")
     .insert({
       client_id: params.clientId,
@@ -481,12 +495,12 @@ export async function uploadClientAsset(
   contentType: string
 ): Promise<string> {
   const path = `builds/${buildId}/${fileName}`;
-  const { error } = await supabaseAdmin.storage
+  const { error } = await getSupabaseAdmin().storage
     .from("client-assets")
     .upload(path, file, { contentType, upsert: true });
   if (error) throw new Error(`Upload failed: ${error.message}`);
 
-  const { data } = supabaseAdmin.storage
+  const { data } = getSupabaseAdmin().storage
     .from("client-assets")
     .getPublicUrl(path);
   return data.publicUrl;

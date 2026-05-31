@@ -3,11 +3,11 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 const BUILD_TYPES = [
-  { id: "renovation", label: "RENOVATION" },
-  { id: "new_build", label: "NEW BUILD" },
-  { id: "premium", label: "PREMIUM" },
-  { id: "outreach_demo", label: "OUTREACH DEMO" },
-  { id: "ugc_campaign", label: "UGC CAMPAIGN" },
+  { id: "renovation",    label: "RENOVATION",    tier: "TIER 1 — RENOVATION" },
+  { id: "new_build",     label: "NEW BUILD",     tier: "TIER 2 — NEW BUILD"  },
+  { id: "premium",       label: "PREMIUM",       tier: "TIER 3 — ADVANCED"   },
+  { id: "outreach_demo", label: "OUTREACH DEMO", tier: "TIER 1 — RENOVATION" },
+  { id: "ugc_campaign",  label: "UGC CAMPAIGN",  tier: "TIER 1 — RENOVATION" },
 ];
 
 export function CommandBar() {
@@ -17,7 +17,8 @@ export function CommandBar() {
   const [notes, setNotes] = useState("");
   const [logoThumb, setLogoThumb] = useState<string | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
-  const [fired, setFired] = useState(false);
+  const [firing, setFiring] = useState(false);
+  const [fireError, setFireError] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const logoRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<HTMLInputElement>(null);
@@ -34,13 +35,40 @@ export function CommandBar() {
     setPhotoCount(e.target.files?.length ?? 0);
   }
 
-  function handleFire() {
-    if (!url || fired) return;
-    setFired(true);
-    setTimeout(() => {
-      setFired(false);
-      router.push("/");
-    }, 1800);
+  async function handleFire() {
+    if (!url.trim() || firing) return;
+    setFiring(true);
+    setFireError("");
+
+    let validatedUrl = url.trim();
+    if (!validatedUrl.startsWith("http://") && !validatedUrl.startsWith("https://")) {
+      validatedUrl = `https://${validatedUrl}`;
+    }
+
+    const tier = BUILD_TYPES.find(t => t.id === buildType)?.tier ?? "TIER 2 — NEW BUILD";
+
+    try {
+      const res = await fetch("/api/launch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: validatedUrl,
+          tier,
+          notes: notes.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? "Pipeline failed to start");
+      }
+
+      const buildId = res.headers.get("X-Build-ID") ?? "";
+      router.push(`/activity?buildId=${buildId}`);
+    } catch (err) {
+      setFireError((err as Error).message);
+      setFiring(false);
+    }
   }
 
   if (collapsed) {
@@ -50,7 +78,7 @@ export function CommandBar() {
         style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
       >
         <span className="font-display text-sm" style={{ color: "var(--amber)" }}>COMMAND BAR</span>
-        <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>— COLLAPSED</span>
+        <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>— COLLAPSED — drop a URL and hit FIRE AGENTS to launch</span>
         <button
           onClick={() => setCollapsed(false)}
           className="ml-auto font-mono text-xs px-3 py-1 rounded border transition-all hover:opacity-80"
@@ -168,21 +196,29 @@ export function CommandBar() {
             </button>
           </div>
 
-          {/* FIRE button */}
-          <button
-            onClick={handleFire}
-            disabled={!url}
-            className="px-8 py-2 rounded-lg font-display text-2xl tracking-widest transition-all"
-            style={{
-              background: fired ? "var(--green)" : url ? "var(--amber)" : "var(--bg-elevated)",
-              color: fired || url ? "#000" : "var(--text-dim)",
-              boxShadow: url && !fired ? "0 0 24px rgba(200,151,58,0.35)" : "none",
-              cursor: url ? "pointer" : "not-allowed",
-              minWidth: 140,
-            }}
-          >
-            {fired ? "✓ FIRED" : "FIRE AGENTS"}
-          </button>
+          {/* FIRE button + error */}
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={handleFire}
+              disabled={firing || !url}
+              className="px-8 py-2 rounded-lg font-display text-2xl tracking-widest transition-all"
+              style={{
+                background: firing ? "var(--bg-elevated)" : url ? "var(--amber)" : "var(--bg-elevated)",
+                color: url && !firing ? "#000" : "var(--text-dim)",
+                boxShadow: url && !firing ? "0 0 24px rgba(200,151,58,0.35)" : "none",
+                cursor: firing || !url ? "not-allowed" : "pointer",
+                minWidth: 140,
+                opacity: firing ? 0.6 : 1,
+              }}
+            >
+              {firing ? "⚡ FIRING..." : "FIRE AGENTS"}
+            </button>
+            {fireError && (
+              <div className="font-mono text-xs text-center py-1" style={{ color: "var(--red, #e53e3e)" }}>
+                ⚠ {fireError}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

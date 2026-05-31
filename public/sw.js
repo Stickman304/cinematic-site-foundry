@@ -1,4 +1,4 @@
-const CACHE_NAME = "cinematic-agency-v3";
+const CACHE_NAME = "cinematic-agency-v4";
 const PRECACHE_URLS = ["/"];
 
 self.addEventListener("install", (event) => {

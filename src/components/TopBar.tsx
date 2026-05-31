@@ -28,9 +28,9 @@ export function TopBar() {
         </span>
         <span
           className="font-mono text-xs px-2 py-0.5 rounded border"
-          style={{ color: "var(--text-muted)", borderColor: "var(--border)" }}
+          style={{ color: "var(--amber)", borderColor: "var(--amber)" }}
         >
-          MISSION CONTROL v1.0
+          v2.0 · CLEAN ORCHESTRATOR
         </span>
       </div>
 
